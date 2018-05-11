@@ -1,9 +1,16 @@
 import json
 
-train_data_path = "./data/dev.json"
-
+train_data_path = "./data/train.json"
+table_data_path = "./data/tables.json"
 train_data = json.load(open(train_data_path))
 
+
+
+def index_to_column_name(index,table):
+    column_name = table["column_names"][index][1]
+    table_index = table["column_names"][index][0]
+    table_name = table["table_names"][table_index]
+    return table_name,column_name
 
 class MultiSqlPredictor:
     def __init__(self, question, sql, history):
@@ -35,10 +42,11 @@ class KeyWordPredictor:
 
 
 class ColPredictor:
-    def __init__(self, question, sql, history):
+    def __init__(self, question, sql, table,history):
         self.sql = sql
         self.question = question
         self.history = history
+        self.table = table
         self.keywords = ('select', 'where', 'groupBy', 'orderBy', 'having')
 
     def generate_output(self):
@@ -50,17 +58,17 @@ class ColPredictor:
                 if key == 'groupBy':
                     sql_cols = self.sql[key]
                     for col in sql_cols:
-                        cols.append((col[1], col[2]))
+                        cols.append((index_to_column_name(col[1],self.table), col[2]))
                         sqls.append(col)
                 elif key == 'orderBy':
                     sql_cols = self.sql[key][1]
                     for col in sql_cols:
-                        cols.append((col[1][1], col[1][2]))
+                        cols.append((index_to_column_name(col[1][1],self.table), col[1][2]))
                         sqls.append(col)
                 elif key == 'select':
                     sql_cols = self.sql[key][1]
                     for col in sql_cols:
-                        cols.append((col[1][1][1], col[1][1][2]))
+                        cols.append((index_to_column_name(col[1][1][1],self.table), col[1][1][2]))
                         sqls.append(col)
                 elif key == 'where' or key == 'having':
                     sql_cols = self.sql[key]
@@ -68,7 +76,7 @@ class ColPredictor:
                         if not isinstance(col,list):
                             continue
                         try:
-                            cols.append((col[2][1][1], col[2][1][2]))
+                            cols.append((index_to_column_name(col[2][1][1],self.table), col[2][1][2]))
                         except:
                             print("Key:{} Col:{} Question:{}".format(key,col,self.question))
                         sqls.append(col)
@@ -122,26 +130,39 @@ class AggPredictor:
 
 
 class DesAscPredictor:
-    def __init__(self, question, sql, history):
+    def __init__(self, question, sql, table,history):
         self.sql = sql
         self.question = question
         self.history = history
+        self.table = table
 
     def generate_output(self):
         for key in self.sql:
             if key == "orderBy" and self.sql[key]:
-                return self.history + [key], self.sql[key][0]
+                self.history.append(key)
+                try:
+                    col = self.sql[key][1][0][1][1]
+                except:
+                    print("question:{} sql:{}".format(self.question,self.sql))
+                self.history.append(index_to_column_name(col,self.table))
+                return self.history, self.sql[key][0]
 
 
-def parser_item(question_tokens,sql,history, dataset):
+def parser_item(question_tokens,sql,table,history, dataset):
     # try:
     #     question_tokens = item['question_toks']
     # except:
     #     print(item)
     # sql = item['sql']
+    table_schema = [
+        table["table_names"],
+        table["column_names"],
+        table["column_types"]
+    ]
     history, label, sql = MultiSqlPredictor(question_tokens, sql, history).generate_output()
     dataset['multi_sql_dataset'].append({
         "question_tokens": question_tokens,
+        "ts":table_schema,
         "history": history[:],
         "label": label
     })
@@ -149,49 +170,55 @@ def parser_item(question_tokens,sql,history, dataset):
     history, label, sql = KeyWordPredictor(question_tokens, sql, history).generate_output()
     dataset['keyword_dataset'].append({
         "question_tokens": question_tokens,
+        "ts":table_schema,
         "history": history[:],
         "keywords_num": label[0],
         "keywords": label[1]
     })
-    orderby_ret = DesAscPredictor(question_tokens, sql, history).generate_output()
+    orderby_ret = DesAscPredictor(question_tokens, sql, table,history).generate_output()
     if orderby_ret:
         dataset['des_asc_dataset'].append({
             "question_tokens": question_tokens,
+            "ts": table_schema,
             "history": orderby_ret[0][:],
             "label": orderby_ret[1]
         })
-    col_ret = ColPredictor(question_tokens, sql, history).generate_output()
+    col_ret = ColPredictor(question_tokens, sql, table,history).generate_output()
     agg_candidates = []
     op_candidates = []
     for h, l, s in col_ret:
         dataset['col_dataset'].append({
             "question_tokens": question_tokens,
+            "ts": table_schema,
             "history": h[:],
             "cols_num": l[0],
             "cols": l[1]
         })
         for col, sql_item in zip(l[1], s):
             if h[-1] in ('where', 'having'):
-                op_candidates.append((h + [col], sql_item))
+                op_candidates.append((h + [col[0]], sql_item))
             if h[-1] in ('select', 'orderBy', 'having'):
-                agg_candidates.append((h + [col], sql_item))
+                agg_candidates.append((h + [col[0]], sql_item))
     for h, sql_item in op_candidates:
         _, label, s = OpPredictor(question_tokens, sql_item, h).generate_output()
         dataset['op_dataset'].append({
             "question_tokens": question_tokens,
+            "ts": table_schema,
             "history": h[:],
             "op": label
         })
         if isinstance(s[0], dict):
             dataset['root_tem_dataset'].append({
                 "question_tokens": question_tokens,
+                "ts": table_schema,
                 "history": h[:] + [label],
                 "label": "ROOT"
             })
-            parser_item(question_tokens,s[0],h[:] + [label], dataset)
+            parser_item(question_tokens,s[0],table,h[:] + [label], dataset)
         else:
             dataset['root_tem_dataset'].append({
                 "question_tokens": question_tokens,
+                "ts": table_schema,
                 "history": h[:] + [label],
                 "label": "TEM"
             })
@@ -199,11 +226,18 @@ def parser_item(question_tokens,sql,history, dataset):
         _, label = AggPredictor(question_tokens,sql_item,h).generate_output()
         dataset['agg_dataset'].append({
             "question_tokens": question_tokens,
+            "ts": table_schema,
             "history": h[:],
             "agg": label
         })
 
 
+def get_table_dict(table_data_path):
+    data = json.load(open(table_data_path))
+    table = dict()
+    for item in data:
+        table[item["db_id"]] = item
+    return table
 def parse_data(data):
     dataset = {
         "multi_sql_dataset": [],
@@ -214,9 +248,9 @@ def parse_data(data):
         "root_tem_dataset": [],
         "des_asc_dataset": []
     }
-
+    table_dict = get_table_dict(table_data_path)
     for item in data:
-        parser_item(item["question_toks"],item["sql"], [], dataset)
+        parser_item(item["question_toks"],item["sql"],table_dict[item["db_id"]], [], dataset)
     print("finished preprocess")
     for key in dataset:
         print("dataset:{} size:{}".format(key,len(dataset[key])))
