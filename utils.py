@@ -5,7 +5,9 @@ import numpy as np
 import os
 from nltk import word_tokenize
 #from lib.dbengine import DBEngine
-from word_embedding import gen_x_q_batch
+import sys
+sys.path.append(".")
+# import word_embedding
 
 def lower_keys(x):
     if isinstance(x, list):
@@ -89,7 +91,7 @@ def load_data(sql_paths, table_paths, use_small=False):
 
 
 def load_train_dataset(component):
-    return json.load(open("./generated_data/{}.json".format(component)))
+    return json.load(open("./generated_data/{}_dataset.json".format(component)))
 
 def load_dataset(dataset_id, use_small=False):
     if dataset_id == 2:
@@ -225,6 +227,8 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data):
         if component == "multi_sql":
             #none, except, intersect,union
             #truth B*index(0,1,2,3)
+            print("q_len:{}".format(q_len))
+            print("q_emb_shape:{} hs_emb_shape:{}".format(q_emb_var.size(), hs_emb_var.size()))
             mkw_emb_var = embed_layer.gen_word_list_embedding(["none","except","intersect","union"])
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, mkw_emb_var=mkw_emb_var, mkw_len=4)
         elif component == "keyword":
@@ -283,37 +287,86 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data):
     return cum_loss / len(data)
 
 
-def epoch_acc(model, batch_size, sql_data, table_data, pred_entry, error_print=False, train_flag = False):
+def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False, train_flag = False):
     model.eval()
-    perm = list(range(len(sql_data)))
+    perm = list(range(len(data)))
     st = 0
-    one_acc_num = 0.0
-    tot_acc_num = 0.0
-    tot_prf = 0.0
-    while st < len(sql_data):
+    total_number_error = 0.0
+    total_error = 0.0
+
+    while st < len(data):
         ed = st+batch_size if st+batch_size < len(perm) else len(perm)
 
-        q_seq, col_seq, col_num, ans_seq, query_seq, gt_cond_seq,\
-         raw_data = to_batch_seq(sql_data, table_data, perm, st, ed, ret_vis_data=True)
-        raw_q_seq = [x[0] for x in raw_data]
-        raw_col_seq = [x[1] for x in raw_data]
-        query_gt, table_ids = to_batch_query(sql_data, perm, st, ed)
-        gt_sel_seq = [x[1] for x in ans_seq]
-        gt_ody_seq = [x[9] for x in ans_seq]
-        if train_flag:
-            score = model.forward(q_seq, col_seq, col_num, pred_entry, gt_sel=gt_sel_seq) #tmep for testing
+        q_seq, history, label = to_batch_seq(data, perm, st, ed)
+        q_emb_var, q_len = embed_layer.gen_x_q_batch(q_seq)
+        hs_emb_var, hs_len = embed_layer.gen_x_history_batch(history)
+        score = 0.0
+
+        if component == "multi_sql":
+            #none, except, intersect,union
+            #truth B*index(0,1,2,3)
+            mkw_emb_var = embed_layer.gen_word_list_embedding(["none","except","intersect","union"])
+            #q_emb_var (B,max_len,300), q_len (B,), hs_emb_var (B,max_len,300)
+            # print("q_emb_shape:{} hs_emb_shape:{}".format(q_emb_var.size(),hs_emb_var.size()))
+            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, mkw_emb_var=mkw_emb_var, mkw_len=4)
+        elif component == "keyword":
+            #where group by order by
+            # [[0,1,2]]
+            kw_emb_var = embed_layer.gen_word_list_embedding(["where", "group by", "order by"])
+            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, kw_emb_var=kw_emb_var, kw_len=3)
+        elif component == "col":
+            #col word embedding
+            # [[0,1,3]]
+            tables,col_lens = to_batch_tables(data,perm,st,ed)
+            col_emb_var = embed_layer.gen_table_embedding(tables)
+            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens)
+        elif component == "op":
+            #B*index
+            tables, col_lens = to_batch_tables(data, perm, st, ed,gen_gt_col=True)
+            col_emb_var = embed_layer.gen_table_embedding(tables)
+            gt_col = []
+            for i in range(st,ed):
+                gt_col.append(data["history"][-1][2])
+            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+        elif component == "agg":
+            # [[0,1,3]]
+            tables, col_lens = to_batch_tables(data, perm, st, ed)
+            col_emb_var = embed_layer.gen_table_embedding(tables)
+            gt_col = []
+            for i in range(st, ed):
+                gt_col.append(data["history"][-1][2])
+            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+        elif component == "root_tem":
+            #B*0/1
+            tables, col_lens = to_batch_tables(data, perm, st, ed)
+            col_emb_var = embed_layer.gen_table_embedding(tables)
+            gt_col = []
+            for i in range(st, ed):
+                gt_col.append(data["history"][-2][2])
+            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=None)
+        elif component == "des_asc":
+            # B*0/1
+            tables, col_lens = to_batch_tables(data, perm, st, ed)
+            col_emb_var = embed_layer.gen_table_embedding(tables)
+            gt_col = []
+            for i in range(st, ed):
+                gt_col.append(data["history"][-2][2])
+            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=None)
+
+        if component in ("agg","col","keyword"):
+            num_err,err,_=model.check_acc(score,label)
+            total_number_error += num_err
+            total_error += err
         else:
-            score = model.forward(q_seq, col_seq, col_num, pred_entry)
-        pred_queries = model.gen_query(score, q_seq, col_seq,
-                raw_q_seq, raw_col_seq, pred_entry, gt_sel = gt_sel_seq, gt_ody = gt_ody_seq)
-        one_err, tot_err = model.check_acc(raw_data, pred_queries, query_gt, pred_entry, error_print)
+            err = model.check_acc(score, label)
+            total_error += err
 
-        #tot_prf += prf
-        one_acc_num += (ed-st-one_err)
-        tot_acc_num += (ed-st-tot_err)
-
-        st = ed
-    return tot_acc_num / len(sql_data), one_acc_num / len(sql_data)
+    if component in ("agg","col","keyword"):
+        print("Train {} acc number predict acc:{} total acc: {}".format(component,1 - total_number_error*1.0/len(data),1 - total_error*1.0/len(data)))
+        return 1 - total_number_error*1.0/len(data),1 - total_error*1.0/len(data)
+    else:
+        print("Train {} acc total acc: {}".format(component,1 - total_error*1.0/len(data)))
+        return 1 - total_error*1.0/len(data)
 
 
 def load_para_wemb(file_name):

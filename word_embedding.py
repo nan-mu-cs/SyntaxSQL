@@ -147,7 +147,7 @@ class WordEmbedding(nn.Module):
                     else:
                         history_val.append(sum(emb_list) / float(ws_len))
                 #ROOT
-                elif isinstance(item,str):
+                elif isinstance(item,basestring):
                     if item == "ROOT":
                         item = "root"
                     elif item == "asc":
@@ -170,7 +170,7 @@ class WordEmbedding(nn.Module):
                 elif isinstance(item,int):
                     history_val.append(self.word_emb.get(AGG_OPS[item], np.zeros(self.N_word, dtype=np.float32)))
                 else:
-                    print("Warning: unsupported data type in history!")
+                    print("Warning: unsupported data type in history! {}".format(item))
 
             val_embs.append(history_val)
             val_len[i] = len(history_val)

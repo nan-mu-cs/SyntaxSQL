@@ -122,7 +122,7 @@ class AggPredictor:
         label = 0
         key = self.history[-2]
         if key == 'select':
-            label = self.sql[1][1][0]
+            label = self.sql[0]
         elif key == 'orderBy':
             label = self.sql[1][0]
         elif key == 'having':
@@ -223,13 +223,23 @@ def parser_item(question_tokens,sql,table,history, dataset):
             "ts": table_schema,
             "history": h[:],
             "cols_num": l[0],
-            "label": [val[0][2] for val in l[1]]
+            "label": list(set([val[0][2] for val in l[1]]))
         })
         for col, sql_item in zip(l[1], s):
             if h[-1] in ('where', 'having'):
                 op_candidates.append((h + [col[0]], sql_item))
             if h[-1] in ('select', 'orderBy', 'having'):
                 agg_candidates.append((h + [col[0]], sql_item))
+            if h[-1] == "groupBy":
+                label = 0
+                if sql["having"]:
+                    label = 1
+                dataset['having_dataset'].append({
+                    "question_tokens": question_tokens,
+                    "ts": table_schema,
+                    "history": h[:]+[col[0]],
+                    "label": label
+                })
     for h, sql_item in op_candidates:
         _, label, s = OpPredictor(question_tokens, sql_item, h).generate_output()
         dataset['op_dataset'].append({
@@ -245,7 +255,7 @@ def parser_item(question_tokens,sql,table,history, dataset):
                 "history": h[:] + [WHERE_OPS[label]],
                 "label": 0
             })
-            parser_item(question_tokens,s[0],table,h[:] + [label], dataset)
+            parser_item(question_tokens,s[0],table,h[:] + [WHERE_OPS[label]], dataset)
         else:
             dataset['root_tem_dataset'].append({
                 "question_tokens": question_tokens,
@@ -253,13 +263,21 @@ def parser_item(question_tokens,sql,table,history, dataset):
                 "history": h[:] + [WHERE_OPS[label]],
                 "label": 1
             })
+    agg_col_dict = dict()
     for h, sql_item in agg_candidates:
         _, label = AggPredictor(question_tokens,sql_item,h).generate_output()
+        if label != 0:
+            key = "{}{}".format(h[-2],h[-1][2])
+            if key in agg_col_dict:
+                agg_col_dict[key][1].append(label)
+            else:
+                agg_col_dict[key] = [h[:],[label]]
+    for key in agg_col_dict:
         dataset['agg_dataset'].append({
             "question_tokens": question_tokens,
             "ts": table_schema,
-            "history": h[:],
-            "label": label
+            "history": agg_col_dict[key][0],
+            "label": agg_col_dict[key][1]
         })
 
 
@@ -277,7 +295,8 @@ def parse_data(data):
         "op_dataset": [],
         "agg_dataset": [],
         "root_tem_dataset": [],
-        "des_asc_dataset": []
+        "des_asc_dataset": [],
+        "having_dataset":[]
     }
     table_dict = get_table_dict(table_data_path)
     for item in data:
