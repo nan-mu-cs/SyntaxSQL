@@ -1,9 +1,13 @@
 import json
-
+import sys
+train_dev = "train"
+if len(sys.argv) > 1:
+    train_dev = sys.argv[1]
 train_data_path = "./data/train.json"
 table_data_path = "./data/tables.json"
+if train_dev == "dev":
+    train_data_path = "./data/dev.json"
 train_data = json.load(open(train_data_path))
-
 
 WHERE_OPS = ('not', 'between', '=', '>', '<', '>=', '<=', '!=', 'in', 'like', 'is', 'exists')
 # SQL_OPS = ('none','intersect', 'union', 'except')
@@ -306,6 +310,6 @@ def parse_data(data):
     print("finished preprocess")
     for key in dataset:
         print("dataset:{} size:{}".format(key,len(dataset[key])))
-        json.dump(dataset[key],open("./generated_data/{}.json".format(key),"w"),indent=2)
+        json.dump(dataset[key],open("./generated_data/{}_{}.json".format(train_dev,key),"w"),indent=2)
 
 parse_data(train_data)

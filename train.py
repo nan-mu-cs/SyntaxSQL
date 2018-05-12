@@ -54,7 +54,8 @@ if __name__ == '__main__':
     if args.train_component not in TRAIN_COMPONENTS:
         print("Invalid train component")
         exit(1)
-    train_data = load_train_dataset(args.train_component)
+    train_data = load_train_dev_dataset(args.train_component,"train")
+    dev_data = load_train_dev_dataset(args.train_component, "dev")
     # sql_data, table_data, val_sql_data, val_table_data, \
     #         test_sql_data, test_table_data, \
     #         TRAIN_DB, DEV_DB, TEST_DB = load_dataset(args.dataset, use_small=USE_SMALL)
@@ -108,11 +109,12 @@ if __name__ == '__main__':
     embed_layer = WordEmbedding(word_emb, N_word, gpu=GPU,
                                 SQL_TOK=SQL_TOK, trainable=args.train_emb)
     print("start training")
+    best_acc = 0.0
     for i in range(args.epoch):
         print('Epoch %d @ %s'%(i+1, datetime.datetime.now()))
         print(' Loss = %s'%epoch_train(
                 model, optimizer, BATCH_SIZE,args.train_component,embed_layer,train_data))
-        # train_tot_acc, train_bkd_acc = epoch_acc(model, BATCH_SIZE, args.train_component,embed_layer,train_data)
+        epoch_acc(model, BATCH_SIZE, args.train_component,embed_layer,dev_data)
         # print '\nTrain sel acc: %s, sel # acc: %s' % (train_bkd_acc[1], train_bkd_acc[0])
         #print ' Breakdown results: agg #: %s, agg: %s, sel: %s, cond: %s, sel #: %s, cond #: %s, cond col: %s, cond op: %s, cond val: %s, group #: %s, group: %s, order #: %s, order: %s, order agg: %s, order par: %s'\
         #    % (train_bkd_acc[0], train_bkd_acc[1], train_bkd_acc[2], train_bkd_acc[3], train_bkd_acc[4], train_bkd_acc[5], train_bkd_acc[6], train_bkd_acc[7], train_bkd_acc[8], train_bkd_acc[9], train_bkd_acc[10], train_bkd_acc[11], train_bkd_acc[12], train_bkd_acc[13], train_bkd_acc[14])
