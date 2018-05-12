@@ -29,7 +29,7 @@ class ColPredictor(nn.Module):
         self.hs_num_att = nn.Linear(N_h, N_h)
         self.col_num_out_q = nn.Linear(N_h, N_h)
         self.col_num_out_hs = nn.Linear(N_h, N_h)
-        self.col_num_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 3)) # num of cols: 1-3
+        self.col_num_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 6)) # num of cols: 1-3
 
         self.q_att = nn.Linear(N_h, N_h)
         self.hs_att = nn.Linear(N_h, N_h)
@@ -121,8 +121,8 @@ class ColPredictor(nn.Module):
         for b in range(B):
             truth_prob[b][truth[b]] = 1
         data = torch.from_numpy(truth_prob)
-        print("data {}".format(data))
-        print("data {}".format(data.cuda()))
+        # print("data {}".format(data))
+        # print("data {}".format(data.cuda()))
         truth_var = Variable(data.cuda())
         #loss += self.mlsml(col_score, truth_var)
         loss += self.bce_logit(col_score, truth_var) # double check no sigmoid

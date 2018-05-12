@@ -63,7 +63,7 @@ class AggPredictor(nn.Module):
         col_emb = torch.stack(col_emb)
 
         # Predict agg number
-        att_val_qc_num = torch.bmm(col_emb.squeeze(1), self.q_num_att(q_enc).transpose(1, 2)).unsqueeze()
+        att_val_qc_num = torch.bmm(col_emb.unsqueeze(1), self.q_num_att(q_enc).transpose(1, 2)).squeeze()
         for idx, num in enumerate(q_len):
             if num < max_q_len:
                 att_val_qc_num[idx, num:] = -100
@@ -71,7 +71,7 @@ class AggPredictor(nn.Module):
         q_weighted_num = (q_enc * att_prob_qc_num.unsqueeze(2)).sum(1)
 
         # Same as the above, compute SQL history embedding weighted by column attentions
-        att_val_hc_num = torch.bmm(col_emb.squeeze(1), self.hs_num_att(hs_enc).transpose(1, 2)).unsqueeze()
+        att_val_hc_num = torch.bmm(col_emb.unsqueeze(1), self.hs_num_att(hs_enc).transpose(1, 2)).squeeze()
         for idx, num in enumerate(hs_len):
             if num < max_hs_len:
                 att_val_hc_num[idx, num:] = -100
@@ -81,7 +81,7 @@ class AggPredictor(nn.Module):
         agg_num_score = self.agg_num_out(self.agg_num_out_q(q_weighted_num) + self.agg_num_out_hs(hs_weighted_num))
 
         # Predict aggregators
-        att_val_qc = torch.bmm(col_emb.squeeze(1), self.q_att(q_enc).transpose(1, 2)).unsqueeze()
+        att_val_qc = torch.bmm(col_emb.unsqueeze(1), self.q_att(q_enc).transpose(1, 2)).squeeze()
         for idx, num in enumerate(q_len):
             if num < max_q_len:
                 att_val_qc[idx, num:] = -100
@@ -89,7 +89,7 @@ class AggPredictor(nn.Module):
         q_weighted = (q_enc * att_prob_qc.unsqueeze(2)).sum(1)
 
         # Same as the above, compute SQL history embedding weighted by column attentions
-        att_val_hc = torch.bmm(col_emb.squeeze(1), self.hs_att(hs_enc).transpose(1, 2)).unsqueeze()
+        att_val_hc = torch.bmm(col_emb.unsqueeze(1), self.hs_att(hs_enc).transpose(1, 2)).squeeze()
         for idx, num in enumerate(hs_len):
             if num < max_hs_len:
                 att_val_hc[idx, num:] = -100
@@ -105,6 +105,7 @@ class AggPredictor(nn.Module):
 
     def loss(self, score, truth):
         loss = 0
+        B = len(truth)
         agg_num_score, agg_score = score
         #loss for the column number
         truth_num = [len(t) for t in truth] # double check truth format and for test cases

@@ -21,7 +21,7 @@ class HavingPredictor(nn.Module):
                 num_layers=N_depth, batch_first=True,
                 dropout=0.3, bidirectional=True)
 
-        self.col_lstm = nn.LSTM(input_size=N_word, hidden_size=N_h/2,
+        self.col_lstm = nn.LSTM(input_size=N_word*3, hidden_size=N_h/2,
                 num_layers=N_depth, batch_first=True,
                 dropout=0.3, bidirectional=True)
 
@@ -55,7 +55,7 @@ class HavingPredictor(nn.Module):
         for b in range(B):
             col_emb.append(col_enc[b, gt_col[b]])
         col_emb = torch.stack(col_emb)
-        att_val_qc = torch.bmm(col_emb.squeeze(1), self.q_att(q_enc).transpose(1, 2)).unsqueeze()
+        att_val_qc = torch.bmm(col_emb.unsqueeze(1), self.q_att(q_enc).transpose(1, 2)).squeeze()
         for idx, num in enumerate(q_len):
             if num < max_q_len:
                 att_val_qc[idx, num:] = -100
@@ -63,7 +63,7 @@ class HavingPredictor(nn.Module):
         q_weighted = (q_enc * att_prob_qc.unsqueeze(2)).sum(1)
 
         # Same as the above, compute SQL history embedding weighted by column attentions
-        att_val_hc = torch.bmm(col_emb.squeeze(1), self.hs_att(hs_enc).transpose(1, 2)).unsqueeze()
+        att_val_hc = torch.bmm(col_emb.unsqueeze(1), self.hs_att(hs_enc).transpose(1, 2)).squeeze()
         for idx, num in enumerate(hs_len):
             if num < max_hs_len:
                 att_val_hc[idx, num:] = -100

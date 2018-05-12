@@ -16,7 +16,7 @@ from models.multisql_predictor import MultiSqlPredictor
 from models.op_predictor import OpPredictor
 from models.root_teminal_predictor import RootTeminalPredictor
 
-TRAIN_COMPONENTS = ('multi_sql','keyword','col','op','agg','root_tem','des_asc')
+TRAIN_COMPONENTS = ('multi_sql','keyword','col','op','agg','root_tem','des_asc','having')
 SQL_TOK = ['<UNK>', '<END>', 'WHERE', 'AND', 'EQL', 'GT', 'LT', '<BEG>']
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     parser.add_argument('--train_emb', action='store_true',
             help='Train word embedding.')
     parser.add_argument('--train_component',type=str,default='',
-                        help='set train components,available:[multi_sql,keyword,col,op,agg,root_tem,des_asc]')
+                        help='set train components,available:[multi_sql,keyword,col,op,agg,root_tem,des_asc,having]')
     parser.add_argument('--epoch',type=int,default=500,
                         help='number of epoch for training')
     args = parser.parse_args()
@@ -78,6 +78,8 @@ if __name__ == '__main__':
         model = RootTeminalPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
     elif args.train_component == "des_asc":
         model = DesAscLimitPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
+    elif args.train_component == "having":
+        model = HavingPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
     # model = SQLNet(word_emb, N_word=N_word, gpu=GPU, trainable_emb=args.train_emb)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay = 0)
     print("finished build model")

@@ -29,7 +29,7 @@ class OpPredictor(nn.Module):
         self.hs_att = nn.Linear(N_h, N_h)
         self.op_out_q = nn.Linear(N_h, N_h)
         self.op_out_hs = nn.Linear(N_h, N_h)
-        self.op_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 10)) #for 10 operators
+        self.op_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 12)) #for 10 operators
 
         self.softmax = nn.Softmax() #dim=1
         self.CE = nn.CrossEntropyLoss()
@@ -83,7 +83,7 @@ class OpPredictor(nn.Module):
         # Compute prediction scores
         # op_score: (B, 10)
         op_score = self.op_out(self.op_out_q(q_weighted) + self.op_out_hs(hs_weighted))
-        print("score {}".format(op_score))
+        # print("score {}".format(op_score))
         return op_score
 
 
@@ -92,7 +92,7 @@ class OpPredictor(nn.Module):
         truth_var = Variable(data.cuda())
         loss = self.CE(score, truth_var)
 
-        print("loss {}".format(loss.data.cpu().numpy()))
+        # print("loss {}".format(loss.data.cpu().numpy()))
         return loss
 
 

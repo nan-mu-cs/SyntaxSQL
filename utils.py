@@ -272,23 +272,43 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data):
             #B*0/1
             tables = to_batch_tables(data, perm, st, ed)
             col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
-            gt_col = []
+            gt_col = np.zeros(q_len.shape, dtype=np.int64)
+            # print(ed)
+            index = 0
             for i in range(st, ed):
-                gt_col.append(data["history"][-2][2])
-            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=None)
+                # print(data[perm[i]]["history"][-1])
+                gt_col[index] = data[perm[i]]["history"][-2][2]
+                index += 1
+            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
         elif component == "des_asc":
             # B*0/1
             tables = to_batch_tables(data, perm, st, ed)
             col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
-            gt_col = []
+            gt_col = np.zeros(q_len.shape, dtype=np.int64)
+            # print(ed)
+            index = 0
             for i in range(st, ed):
-                gt_col.append(data["history"][-2][2])
-            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=None)
+                # print(i)
+                gt_col[index] = data[perm[i]]["history"][-2][2]
+                index += 1
+            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+        elif component == 'having':
+            tables = to_batch_tables(data, perm, st, ed)
+            col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
+            gt_col = np.zeros(q_len.shape, dtype=np.int64)
+            # print(ed)
+            index = 0
+            for i in range(st, ed):
+                # print(i)
+                gt_col[index] = data[perm[i]]["history"][-1][2]
+                index += 1
+            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens,
+                                  gt_col=gt_col)
         # score = model.forward(q_seq, col_seq, col_num, pred_entry,
         #         gt_where=gt_where_seq, gt_cond=gt_cond_seq, gt_sel=gt_sel_seq)
-        print("label {}".format(label))
+        # print("label {}".format(label))
         loss = model.loss(score, label)
-        print("loss {}".format(loss.data.cpu().numpy()))
+        # print("loss {}".format(loss.data.cpu().numpy()))
         cum_loss += loss.data.cpu().numpy()[0]*(ed - st)
         optimizer.zero_grad()
         loss.backward()

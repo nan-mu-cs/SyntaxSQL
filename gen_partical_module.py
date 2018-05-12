@@ -18,8 +18,10 @@ KW_DICT = {
     'groupBy':1,
     'orderBy':2
 }
-ORDER_OPS = ('desc', 'asc')
-AGG_OPS = ('none', 'max', 'min', 'count', 'sum', 'avg')
+ORDER_OPS = {
+    'desc': 0,
+    'asc': 1}
+AGG_OPS = ('max', 'min', 'count', 'sum', 'avg','none')
 def index_to_column_name(index,table):
     column_name = table["column_names"][index][1]
     table_index = table["column_names"][index][0]
@@ -209,7 +211,7 @@ def parser_item(question_tokens,sql,table,history, dataset):
             "question_tokens": question_tokens,
             "ts": table_schema,
             "history": orderby_ret[0][:],
-            "label": orderby_ret[1]
+            "label": ORDER_OPS[orderby_ret[1]]
         })
     col_ret = ColPredictor(question_tokens, sql, table,history).generate_output()
     agg_candidates = []
@@ -266,7 +268,7 @@ def parser_item(question_tokens,sql,table,history, dataset):
     agg_col_dict = dict()
     for h, sql_item in agg_candidates:
         _, label = AggPredictor(question_tokens,sql_item,h).generate_output()
-        if label != 0:
+        if label != 5:
             key = "{}{}".format(h[-2],h[-1][2])
             if key in agg_col_dict:
                 agg_col_dict[key][1].append(label)
