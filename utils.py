@@ -421,19 +421,21 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
         if component in ("agg","col","keyword"):
             num_err,err,_=model.check_acc(score,label)
             total_number_error += num_err
-            total_error += err
+            if err > 0:
+                total_error += 1
         else:
             err = model.check_acc(score, label)
-            total_error += err
+            if err > 0:
+                total_error += 1
         st = ed
 
     if component in ("agg","col","keyword"):
-        print("Train {} acc number predict acc:{} total acc: {}".format(component,1 - total_number_error*1.0/len(data),1 - total_error*1.0/len(data)))
+        print("Dev {} acc number predict acc:{} total acc: {}".format(component,1 - total_number_error*1.0/len(data),1 - total_error*1.0/len(data)))
         return 1 - total_number_error*1.0/len(data),1 - total_error*1.0/len(data)
     else:
-        print("Train {} acc total acc: {}".format(component,1 - total_error*1.0/len(data)))
+        print("Dev {} acc total acc: {}".format(component,1 - total_error*1.0/len(data)))
         return 1 - total_error*1.0/len(data)
-
+    return total_error
 
 def load_para_wemb(file_name):
     f = io.open(file_name, 'r', encoding='utf-8')

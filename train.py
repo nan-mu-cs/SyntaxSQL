@@ -114,7 +114,11 @@ if __name__ == '__main__':
         print('Epoch %d @ %s'%(i+1, datetime.datetime.now()))
         print(' Loss = %s'%epoch_train(
                 model, optimizer, BATCH_SIZE,args.train_component,embed_layer,train_data))
-        epoch_acc(model, BATCH_SIZE, args.train_component,embed_layer,dev_data)
+        acc = epoch_acc(model, BATCH_SIZE, args.train_component,embed_layer,dev_data)
+        if acc > best_acc:
+            best_acc = acc
+            print("Save model...")
+            torch.save(model.state_dict(),"saved_models/{}_models.dump".format(args.train_component))
         # print '\nTrain sel acc: %s, sel # acc: %s' % (train_bkd_acc[1], train_bkd_acc[0])
         #print ' Breakdown results: agg #: %s, agg: %s, sel: %s, cond: %s, sel #: %s, cond #: %s, cond col: %s, cond op: %s, cond val: %s, group #: %s, group: %s, order #: %s, order: %s, order agg: %s, order par: %s'\
         #    % (train_bkd_acc[0], train_bkd_acc[1], train_bkd_acc[2], train_bkd_acc[3], train_bkd_acc[4], train_bkd_acc[5], train_bkd_acc[6], train_bkd_acc[7], train_bkd_acc[8], train_bkd_acc[9], train_bkd_acc[10], train_bkd_acc[11], train_bkd_acc[12], train_bkd_acc[13], train_bkd_acc[14])
