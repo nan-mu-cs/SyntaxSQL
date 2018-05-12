@@ -82,20 +82,13 @@ class WordEmbedding(nn.Module):
 
     def gen_table_embedding(self,tables):
         B = len(tables)
-        val_emb_array = np.zeros((B, self.N_word*3), dtype=np.float32)
+        val_embs = []
+        val_len = np.zeros(B, dtype=np.int64)
+        # val_emb_array = np.zeros((B, self.N_word*3), dtype=np.float32)
         for i,table in enumerate(tables):
-            cols = []
-            for col in table["column_names"]:
-                col = col.split()
-                col_emb = []
-                for w in col:
-                    col_emb.append(self.word_emb.get(w, np.zeros(self.N_word, dtype=np.float32)))
-                if len(col_emb) == 0:
-                    raise Exception("col name should not be empty!")
-                cols.append(sum(col_emb)/len(col_emb))
-            avg_col = sum(cols)/len(cols)
             tnames = []
-            for tname in table["table_names"]:
+            table_embs = []
+            for tname in table[0]:
                 tname = tname.split()
                 tname_emb = []
                 for w in tname:
@@ -103,24 +96,50 @@ class WordEmbedding(nn.Module):
                 if len(tname_emb) == 0:
                     raise Exception("col name should not be empty!")
                 tnames.append(sum(tname_emb)/len(tname_emb))
-            avg_tname = sum(tnames)/len(tnames)
-            avg_type = sum(self.word_emb.get(w, np.zeros(self.N_word, dtype=np.float32)) for w in table["column_types"])
-            val_emb_array[i] = np.concatenate((avg_col,avg_tname,avg_type),axis=0)
+            # print("tnames {}".format(len(tnames)))
+
+            for idx,col in table[1]:
+                # print(col)
+                col = col.split()
+                col_emb = []
+                for w in col:
+                    col_emb.append(self.word_emb.get(w, np.zeros(self.N_word, dtype=np.float32)))
+                if len(col_emb) == 0:
+                    raise Exception("col name should not be empty!")
+                if idx == -1:
+                    emb = np.concatenate((sum(col_emb)/len(col_emb), np.zeros(self.N_word, dtype=np.float32),np.zeros(self.N_word, dtype=np.float32)), axis=0)
+                else:
+                    emb = np.concatenate((sum(col_emb) / len(col_emb), tnames[idx],
+                                    self.word_emb.get(table[2][idx], np.zeros(self.N_word, dtype=np.float32))), axis=0)
+                table_embs.append(emb)
+            val_embs.append(table_embs)
+            val_len[i] = len(table_embs)
+
+        max_len = max(val_len)
+
+        val_emb_array = np.zeros((B, max_len, self.N_word*3), dtype=np.float32)
+        for i in range(B):
+            for t in range(len(val_embs[i])):
+                val_emb_array[i, t, :] = val_embs[i][t]
         val_inp = torch.from_numpy(val_emb_array)
         if self.gpu:
             val_inp = val_inp.cuda()
         val_inp_var = Variable(val_inp)
-        return val_inp_var
 
-    def gen_word_list_embedding(self,words):
-        val_emb_array = np.zeros((len(words), self.N_word), dtype=np.float32)
+        return val_inp_var, val_len
+
+
+    def gen_word_list_embedding(self,words,B):
+        val_emb_array = np.zeros((B,len(words), self.N_word), dtype=np.float32)
         for i,word in enumerate(words):
             if len(word.split()) == 1:
-                val_emb_array[i,:] = self.word_emb.get(word, np.zeros(self.N_word, dtype=np.float32))
+                emb = self.word_emb.get(word, np.zeros(self.N_word, dtype=np.float32))
             else:
                 word = word.split()
-                val_emb_array[i, :] = (self.word_emb.get(word[0], np.zeros(self.N_word, dtype=np.float32))
+                emb = (self.word_emb.get(word[0], np.zeros(self.N_word, dtype=np.float32))
                                        +self.word_emb.get(word[1], np.zeros(self.N_word, dtype=np.float32)) )/2
+            for b in range(B):
+                val_emb_array[b,i,:] = emb
         val_inp = torch.from_numpy(val_emb_array)
         if self.gpu:
             val_inp = val_inp.cuda()
@@ -154,7 +173,7 @@ class WordEmbedding(nn.Module):
                         item = "ascending"
                     elif item == "desc":
                         item == "descending"
-                    elif item in (
+                    if item in (
                     "none", "select", "from", "where", "having", "limit", "intersect", "except", "union", 'not',
                     'between', '=', '>', '<', 'in', 'like', 'is', 'exists', 'root', 'ascending', 'descending'):
                         history_val.append(self.word_emb.get(item, np.zeros(self.N_word, dtype=np.float32)))
