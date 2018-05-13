@@ -421,12 +421,10 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
         if component in ("agg","col","keyword"):
             num_err,err,_=model.check_acc(score,label)
             total_number_error += num_err
-            if err > 0:
-                total_error += 1
+            total_error += err
         else:
             err = model.check_acc(score, label)
-            if err > 0:
-                total_error += 1
+            total_error += err
         st = ed
 
     if component in ("agg","col","keyword"):
