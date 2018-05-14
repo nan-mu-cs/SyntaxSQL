@@ -1,3 +1,7 @@
+'''
+python gen_partical_module.py dev|train
+'''
+
 import json
 import sys
 train_dev = "train"
