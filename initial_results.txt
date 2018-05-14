@@ -1,0 +1,1022 @@
+
+The followings are the initial results on different modules. The column module is the most important one.
+
+
+### multi_sql module (baseline is 0.93)
+
+Epoch 1 @ 2018-05-13 19:27:02.833552
+ Loss = 0.8801178318550933
+dev data size 688
+Dev multi_sql acc total acc: 0.933139534884
+Save model...
+Epoch 2 @ 2018-05-13 19:27:10.381668
+ Loss = 0.3403290988721511
+dev data size 688
+Dev multi_sql acc total acc: 0.933139534884
+Epoch 3 @ 2018-05-13 19:27:16.795971
+ Loss = 0.298431311646222
+dev data size 688
+Dev multi_sql acc total acc: 0.933139534884
+Epoch 4 @ 2018-05-13 19:27:23.309276
+ Loss = 0.2528778127899254
+dev data size 688
+Dev multi_sql acc total acc: 0.933139534884
+Epoch 5 @ 2018-05-13 19:27:29.799182
+ Loss = 0.222867075829779
+dev data size 688
+Dev multi_sql acc total acc: 0.933139534884
+Epoch 6 @ 2018-05-13 19:27:36.370690
+ Loss = 0.2130343165429153
+dev data size 688
+Dev multi_sql acc total acc: 0.933139534884
+Epoch 7 @ 2018-05-13 19:27:42.866782
+ Loss = 0.19740157285910345
+dev data size 688
+Dev multi_sql acc total acc: 0.933139534884
+Epoch 8 @ 2018-05-13 19:27:49.404313
+ Loss = 0.1908697527148125
+dev data size 688
+Dev multi_sql acc total acc: 0.924418604651
+Epoch 9 @ 2018-05-13 19:27:55.924896
+ Loss = 0.1751131360554485
+dev data size 688
+Dev multi_sql acc total acc: 0.921511627907
+Epoch 10 @ 2018-05-13 19:28:02.540181
+ Loss = 0.15997695725919917
+dev data size 688
+Dev multi_sql acc total acc: 0.918604651163
+Epoch 11 @ 2018-05-13 19:28:09.305040
+ Loss = 0.14546435479288058
+dev data size 688
+Dev multi_sql acc total acc: 0.927325581395
+Epoch 12 @ 2018-05-13 19:28:15.891007
+ Loss = 0.13185282500567416
+dev data size 688
+Dev multi_sql acc total acc: 0.93023255814
+Epoch 13 @ 2018-05-13 19:28:22.478373
+ Loss = 0.11983018973062742
+dev data size 688
+Dev multi_sql acc total acc: 0.931686046512
+Epoch 14 @ 2018-05-13 19:28:29.057273
+ Loss = 0.10843250434435411
+dev data size 688
+Dev multi_sql acc total acc: 0.918604651163
+Epoch 15 @ 2018-05-13 19:28:35.820708
+ Loss = 0.09253462751268815
+dev data size 688
+Dev multi_sql acc total acc: 0.920058139535
+Epoch 16 @ 2018-05-13 19:28:42.693591
+ Loss = 0.09091876516126851
+dev data size 688
+Dev multi_sql acc total acc: 0.933139534884
+Epoch 17 @ 2018-05-13 19:28:49.578657
+ Loss = 0.08310262920572895
+dev data size 688
+Dev multi_sql acc total acc: 0.917151162791
+Epoch 18 @ 2018-05-13 19:28:56.378459
+ Loss = 0.06756324823863706
+dev data size 688
+Dev multi_sql acc total acc: 0.936046511628
+Save model...
+Epoch 19 @ 2018-05-13 19:29:03.233452
+ Loss = 0.08113128997812187
+dev data size 688
+Dev multi_sql acc total acc: 0.9375
+Save model...
+Epoch 20 @ 2018-05-13 19:29:10.051357
+ Loss = 0.05790849807241415
+dev data size 688
+Dev multi_sql acc total acc: 0.925872093023
+Epoch 21 @ 2018-05-13 19:29:16.764381
+ Loss = 0.055190806747270574
+dev data size 688
+Dev multi_sql acc total acc: 0.928779069767
+Epoch 22 @ 2018-05-13 19:29:23.446990
+ Loss = 0.044491000352058115
+dev data size 688
+Dev multi_sql acc total acc: 0.918604651163
+Epoch 23 @ 2018-05-13 19:29:30.186363
+ Loss = 0.039979467189784616
+dev data size 688
+Dev multi_sql acc total acc: 0.920058139535
+Epoch 24 @ 2018-05-13 19:29:37.058227
+ Loss = 0.03412797989791448
+dev data size 688
+Dev multi_sql acc total acc: 0.915697674419
+Epoch 25 @ 2018-05-13 19:29:43.769524
+ Loss = 0.05042678957993764
+dev data size 688
+Dev multi_sql acc total acc: 0.933139534884
+Epoch 26 @ 2018-05-13 19:29:50.509295
+ Loss = 0.03453293739764701
+dev data size 688
+Dev multi_sql acc total acc: 0.920058139535
+Epoch 27 @ 2018-05-13 19:29:57.239338
+ Loss = 0.030683485382453985
+dev data size 688
+Dev multi_sql acc total acc: 0.918604651163
+Epoch 28 @ 2018-05-13 19:30:03.863606
+ Loss = 0.024423737001773544
+dev data size 688
+Dev multi_sql acc total acc: 0.925872093023
+Epoch 29 @ 2018-05-13 19:30:10.510673
+ Loss = 0.017240978634633156
+dev data size 688
+Dev multi_sql acc total acc: 0.9375
+Epoch 30 @ 2018-05-13 19:30:17.149982
+ Loss = 0.026564714278090366
+dev data size 688
+Dev multi_sql acc total acc: 0.925872093023
+Epoch 31 @ 2018-05-13 19:30:23.796810
+ Loss = 0.014592040680545804
+dev data size 688
+Dev multi_sql acc total acc: 0.918604651163
+Epoch 32 @ 2018-05-13 19:30:30.321768
+ Loss = 0.025287316905309977
+dev data size 688
+Dev multi_sql acc total acc: 0.934593023256
+Epoch 33 @ 2018-05-13 19:30:36.918107
+ Loss = 0.021885566070413275
+dev data size 688
+Dev multi_sql acc total acc: 0.934593023256
+Epoch 34 @ 2018-05-13 19:30:43.379226
+ Loss = 0.016981951705701156
+dev data size 688
+Dev multi_sql acc total acc: 0.933139534884
+Epoch 35 @ 2018-05-13 19:30:49.898059
+ Loss = 0.009416439041643023
+dev data size 688
+Dev multi_sql acc total acc: 0.924418604651
+Epoch 36 @ 2018-05-13 19:30:56.338217
+ Loss = 0.019374645564557435
+dev data size 688
+Dev multi_sql acc total acc: 0.928779069767
+Epoch 37 @ 2018-05-13 19:31:02.829114
+ Loss = 0.02725357545502812
+dev data size 688
+Dev multi_sql acc total acc: 0.936046511628
+Epoch 38 @ 2018-05-13 19:31:09.370903
+ Loss = 0.017608716061117233
+dev data size 688
+Dev multi_sql acc total acc: 0.934593023256
+Epoch 39 @ 2018-05-13 19:31:15.949798
+ Loss = 0.013394183036768686
+dev data size 688
+Dev multi_sql acc total acc: 0.925872093023
+Epoch 40 @ 2018-05-13 19:31:22.679367
+ Loss = 0.010440104431780424
+dev data size 688
+Dev multi_sql acc total acc: 0.933139534884
+Epoch 41 @ 2018-05-13 19:31:29.366941
+ Loss = 0.012902117440362137
+dev data size 688
+Dev multi_sql acc total acc: 0.936046511628
+Epoch 42 @ 2018-05-13 19:31:36.146750
+ Loss = 0.02189963930224926
+dev data size 688
+Dev multi_sql acc total acc: 0.94476744186
+Save model...
+Epoch 43 @ 2018-05-13 19:31:42.946879
+ Loss = 0.00820806013535101
+dev data size 688
+Dev multi_sql acc total acc: 0.936046511628
+Epoch 44 @ 2018-05-13 19:31:49.683526
+ Loss = 0.005316304760088371
+dev data size 688
+Dev multi_sql acc total acc: 0.936046511628
+Epoch 45 @ 2018-05-13 19:31:56.382385
+ Loss = 0.010442819869702698
+dev data size 688
+Dev multi_sql acc total acc: 0.9375
+Epoch 46 @ 2018-05-13 19:32:03.222259
+ Loss = 0.0064401868414872285
+dev data size 688
+Dev multi_sql acc total acc: 0.924418604651
+Epoch 47 @ 2018-05-13 19:32:10.103682
+ Loss = 0.006871411489273549
+dev data size 688
+Dev multi_sql acc total acc: 0.927325581395
+Epoch 48 @ 2018-05-13 19:32:16.871377
+ Loss = 0.005134092202196759
+dev data size 688
+Dev multi_sql acc total acc: 0.9375
+Epoch 49 @ 2018-05-13 19:32:23.655560
+ Loss = 0.006414555333103956
+dev data size 688
+Dev multi_sql acc total acc: 0.927325581395
+Epoch 50 @ 2018-05-13 19:32:30.353483
+ Loss = 0.003915779231040723
+dev data size 688
+Dev multi_sql acc total acc: 0.933139534884
+
+
+### keyword
+
+Epoch 1 @ 2018-05-13 20:28:58.207999
+ Loss = 1.5675580849206394
+dev data size 688
+Dev keyword acc number predict acc:0.71511627907 total acc: 0.787790697674
+Save model...
+Epoch 2 @ 2018-05-13 20:29:06.285062
+ Loss = 1.3396481014033246
+dev data size 688
+Dev keyword acc number predict acc:0.751453488372 total acc: 0.796511627907
+Save model...
+Epoch 3 @ 2018-05-13 20:29:13.880033
+ Loss = 1.0909683133011872
+dev data size 688
+Dev keyword acc number predict acc:0.80523255814 total acc: 0.790697674419
+Save model...
+Epoch 4 @ 2018-05-13 20:29:21.367077
+ Loss = 0.9117626841372856
+dev data size 688
+Dev keyword acc number predict acc:0.803779069767 total acc: 0.841569767442
+Epoch 5 @ 2018-05-13 20:29:28.946917
+ Loss = 0.7983349264980938
+dev data size 688
+Dev keyword acc number predict acc:0.802325581395 total acc: 0.875
+Epoch 6 @ 2018-05-13 20:29:36.442717
+ Loss = 0.7062273650967602
+dev data size 688
+Dev keyword acc number predict acc:0.813953488372 total acc: 0.90261627907
+Save model...
+Epoch 7 @ 2018-05-13 20:29:44.131751
+ Loss = 0.6675777705230377
+dev data size 688
+Dev keyword acc number predict acc:0.822674418605 total acc: 0.921511627907
+Save model...
+Epoch 8 @ 2018-05-13 20:29:51.840802
+ Loss = 0.605740374090388
+dev data size 688
+Dev keyword acc number predict acc:0.84011627907 total acc: 0.920058139535
+Save model...
+Epoch 9 @ 2018-05-13 20:29:59.611943
+ Loss = 0.5673515047795972
+dev data size 688
+Dev keyword acc number predict acc:0.834302325581 total acc: 0.925872093023
+Epoch 10 @ 2018-05-13 20:30:07.431462
+ Loss = 0.5215612713986031
+dev data size 688
+Dev keyword acc number predict acc:0.845930232558 total acc: 0.934593023256
+Save model...
+Epoch 11 @ 2018-05-13 20:30:15.090638
+ Loss = 0.49658408968459145
+dev data size 688
+Dev keyword acc number predict acc:0.848837209302 total acc: 0.94476744186
+Save model...
+Epoch 12 @ 2018-05-13 20:30:22.812448
+ Loss = 0.45496651832227664
+dev data size 688
+Dev keyword acc number predict acc:0.851744186047 total acc: 0.954941860465
+Save model...
+Epoch 13 @ 2018-05-13 20:30:30.690273
+ Loss = 0.4308426102877714
+dev data size 688
+Dev keyword acc number predict acc:0.851744186047 total acc: 0.934593023256
+Epoch 14 @ 2018-05-13 20:30:38.453667
+ Loss = 0.40459712003296167
+dev data size 688
+Dev keyword acc number predict acc:0.829941860465 total acc: 0.96511627907
+Epoch 15 @ 2018-05-13 20:30:46.259803
+ Loss = 0.3835417697083057
+dev data size 688
+Dev keyword acc number predict acc:0.84738372093 total acc: 0.952034883721
+Epoch 16 @ 2018-05-13 20:30:54.027516
+ Loss = 0.3590360546427151
+dev data size 688
+Dev keyword acc number predict acc:0.844476744186 total acc: 0.946220930233
+Epoch 17 @ 2018-05-13 20:31:01.737165
+ Loss = 0.3505982255358003
+dev data size 688
+Dev keyword acc number predict acc:0.84738372093 total acc: 0.956395348837
+Epoch 18 @ 2018-05-13 20:31:09.523784
+ Loss = 0.3132098579984404
+dev data size 688
+Dev keyword acc number predict acc:0.844476744186 total acc: 0.957848837209
+Epoch 19 @ 2018-05-13 20:31:17.219372
+ Loss = 0.29111627773566395
+dev data size 688
+Dev keyword acc number predict acc:0.848837209302 total acc: 0.96511627907
+Epoch 20 @ 2018-05-13 20:31:24.905478
+ Loss = 0.28600052169766194
+dev data size 688
+Dev keyword acc number predict acc:0.848837209302 total acc: 0.950581395349
+Epoch 21 @ 2018-05-13 20:31:32.747474
+ Loss = 0.27463926523267435
+dev data size 688
+Dev keyword acc number predict acc:0.835755813953 total acc: 0.957848837209
+Epoch 22 @ 2018-05-13 20:31:40.469993
+ Loss = 0.24689129496460968
+dev data size 688
+Dev keyword acc number predict acc:0.854651162791 total acc: 0.954941860465
+Save model...
+Epoch 23 @ 2018-05-13 20:31:48.318242
+ Loss = 0.2222362663777389
+dev data size 688
+Dev keyword acc number predict acc:0.838662790698 total acc: 0.947674418605
+Epoch 24 @ 2018-05-13 20:31:56.152589
+ Loss = 0.20376330268803147
+dev data size 688
+Dev keyword acc number predict acc:0.831395348837 total acc: 0.963662790698
+
+
+### col module
+
+Epoch 1 @ 2018-05-13 19:37:51.363832
+ Loss = 0.760931555577559
+dev data size 1454
+Dev col acc number predict acc:0.848005502063 total acc: 0.226272352132
+Save model...
+Epoch 2 @ 2018-05-13 19:38:54.927724
+ Loss = 0.42278205312875716
+dev data size 1454
+Dev col acc number predict acc:0.86863823934 total acc: 0.152682255846
+Save model...
+Epoch 3 @ 2018-05-13 19:39:58.009862
+ Loss = 0.3563884271542073
+dev data size 1454
+Dev col acc number predict acc:0.882393397524 total acc: 0.149931224209
+Save model...
+Epoch 4 @ 2018-05-13 19:41:01.614969
+ Loss = 0.31765174623459463
+dev data size 1454
+Dev col acc number predict acc:0.892022008253 total acc: 0.138239339752
+Save model...
+Epoch 5 @ 2018-05-13 19:42:05.481521
+ Loss = 0.303962224066218
+dev data size 1454
+Dev col acc number predict acc:0.887207702889 total acc: 0.165749656121
+Epoch 6 @ 2018-05-13 19:43:09.348657
+ Loss = 0.27733624303725374
+dev data size 1454
+Dev col acc number predict acc:0.896148555708 total acc: 0.138927097662
+Save model...
+Epoch 7 @ 2018-05-13 19:44:13.134036
+ Loss = 0.27255044469368334
+dev data size 1454
+Dev col acc number predict acc:0.908528198074 total acc: 0.156808803301
+Save model...
+Epoch 8 @ 2018-05-13 19:45:16.848509
+ Loss = 0.2565769652657249
+dev data size 1454
+Dev col acc number predict acc:0.897524071527 total acc: 0.171939477304
+Epoch 9 @ 2018-05-13 19:46:20.259854
+ Loss = 0.25224730741090273
+dev data size 1454
+Dev col acc number predict acc:0.903026134801 total acc: 0.149931224209
+Epoch 10 @ 2018-05-13 19:47:22.571975
+ Loss = 0.22859173098396776
+dev data size 1454
+Dev col acc number predict acc:0.887207702889 total acc: 0.170563961486
+Epoch 11 @ 2018-05-13 19:48:25.895723
+ Loss = 0.21740774289909146
+dev data size 1454
+Dev col acc number predict acc:0.908528198074 total acc: 0.141678129298
+Epoch 12 @ 2018-05-13 19:49:29.802025
+ Loss = 0.21274942070778985
+dev data size 1454
+Dev col acc number predict acc:0.905089408528 total acc: 0.135488308116
+Epoch 13 @ 2018-05-13 19:50:33.961619
+ Loss = 0.20181749057027187
+dev data size 1454
+Dev col acc number predict acc:0.913342503439 total acc: 0.119669876204
+Save model...
+Epoch 14 @ 2018-05-13 19:51:38.161955
+ Loss = 0.19594306398865297
+dev data size 1454
+Dev col acc number predict acc:0.908528198074 total acc: 0.134800550206
+Epoch 15 @ 2018-05-13 19:52:42.001569
+ Loss = 0.18273977986992604
+dev data size 1454
+Dev col acc number predict acc:0.904401650619 total acc: 0.158872077029
+Epoch 16 @ 2018-05-13 19:53:46.161152
+ Loss = 0.17025789827674542
+dev data size 1454
+Dev col acc number predict acc:0.911279229711 total acc: 0.169876203576
+Epoch 17 @ 2018-05-13 19:54:49.854875
+ Loss = 0.15963191240663846
+dev data size 1454
+Dev col acc number predict acc:0.914030261348 total acc: 0.17537826685
+Save model...
+Epoch 18 @ 2018-05-13 19:55:53.260502
+ Loss = 0.15307847847402925
+dev data size 1454
+Dev col acc number predict acc:0.913342503439 total acc: 0.180192572215
+Epoch 19 @ 2018-05-13 19:56:57.076947
+ Loss = 0.1501715844610234
+dev data size 1454
+Dev col acc number predict acc:0.916781292985 total acc: 0.179504814305
+Save model...
+Epoch 20 @ 2018-05-13 19:58:00.248128
+ Loss = 0.1408239866964649
+dev data size 1454
+Dev col acc number predict acc:0.909215955983 total acc: 0.182943603851
+Epoch 21 @ 2018-05-13 19:59:04.028709
+ Loss = 0.13088189730363517
+dev data size 1454
+Dev col acc number predict acc:0.909215955983 total acc: 0.19257221458
+Epoch 22 @ 2018-05-13 20:00:07.636836
+ Loss = 0.12497669453122691
+dev data size 1454
+Dev col acc number predict acc:0.909903713893 total acc: 0.198762035763
+Epoch 23 @ 2018-05-13 20:01:11.400021
+ Loss = 0.12279880852632921
+dev data size 1454
+Dev col acc number predict acc:0.919532324622 total acc: 0.189133425034
+Save model...
+Epoch 24 @ 2018-05-13 20:02:15.197449
+ Loss = 0.11723533008097023
+dev data size 1454
+Dev col acc number predict acc:0.891334250344 total acc: 0.215268225585
+Epoch 25 @ 2018-05-13 20:03:18.666139
+ Loss = 0.1129772055483507
+dev data size 1454
+Dev col acc number predict acc:0.910591471802 total acc: 0.2015130674
+Epoch 26 @ 2018-05-13 20:04:23.196547
+ Loss = 0.11197502238942161
+dev data size 1454
+Dev col acc number predict acc:0.88583218707 total acc: 0.226960110041
+Epoch 27 @ 2018-05-13 20:05:26.929386
+ Loss = 0.10489453575799132
+dev data size 1454
+Dev col acc number predict acc:0.905777166437 total acc: 0.204951856946
+Epoch 28 @ 2018-05-13 20:06:30.442240
+ Loss = 0.10789917225583068
+dev data size 1454
+Dev col acc number predict acc:0.878954607978 total acc: 0.22764786795
+Epoch 29 @ 2018-05-13 20:07:33.990885
+ Loss = 0.10058254252206629
+dev data size 1454
+Dev col acc number predict acc:0.908528198074 total acc: 0.202888583219
+Epoch 30 @ 2018-05-13 20:08:37.815240
+ Loss = 0.09332566061852282
+dev data size 1454
+Dev col acc number predict acc:0.893397524072 total acc: 0.221458046768
+Epoch 31 @ 2018-05-13 20:09:39.986141
+ Loss = 0.08813820130051644
+dev data size 1454
+Dev col acc number predict acc:0.878954607978 total acc: 0.232462173315
+Epoch 32 @ 2018-05-13 20:10:42.091693
+ Loss = 0.09586854850137262
+dev data size 1454
+Dev col acc number predict acc:0.86863823934 total acc: 0.243466299862
+Epoch 33 @ 2018-05-13 20:11:44.404328
+ Loss = 0.08819051765963708
+dev data size 1454
+Dev col acc number predict acc:0.898211829436 total acc: 0.211141678129
+Epoch 34 @ 2018-05-13 20:12:46.410344
+ Loss = 0.0839643380558396
+dev data size 1454
+Dev col acc number predict acc:0.889270976616 total acc: 0.224896836314
+Epoch 35 @ 2018-05-13 20:13:48.771528
+ Loss = 0.07957789430574573
+dev data size 1454
+Dev col acc number predict acc:0.898211829436 total acc: 0.21939477304
+Epoch 36 @ 2018-05-13 20:14:50.537851
+ Loss = 0.07577170006007529
+dev data size 1454
+Dev col acc number predict acc:0.880330123796 total acc: 0.22764786795
+Epoch 37 @ 2018-05-13 20:15:52.885506
+ Loss = 0.0717490569468047
+dev data size 1454
+Dev col acc number predict acc:0.889270976616 total acc: 0.223521320495
+Epoch 38 @ 2018-05-13 20:16:55.074233
+ Loss = 0.07249484100772605
+dev data size 1454
+Dev col acc number predict acc:0.892022008253 total acc: 0.224209078404
+Epoch 39 @ 2018-05-13 20:17:57.499112
+ Loss = 0.07178762646382525
+dev data size 1454
+Dev col acc number predict acc:0.880330123796 total acc: 0.250343878955
+Epoch 40 @ 2018-05-13 20:18:58.899830
+ Loss = 0.06676593217328075
+dev data size 1454
+Dev col acc number predict acc:0.887895460798 total acc: 0.233149931224
+Epoch 41 @ 2018-05-13 20:20:00.332194
+ Loss = 0.06923917650366715
+dev data size 1454
+Dev col acc number predict acc:0.880330123796 total acc: 0.251719394773
+
+
+### op module
+
+
+Epoch 1 @ 2018-05-13 21:02:39.110725
+ Loss = 1.8206977721063786
+dev data size 500
+Dev op acc total acc: 0.608
+Save model...
+Epoch 2 @ 2018-05-13 21:02:53.647595
+ Loss = 1.3248422990348099
+dev data size 500
+Dev op acc total acc: 0.608
+Epoch 3 @ 2018-05-13 21:03:07.880518
+ Loss = 1.2260068541119813
+dev data size 500
+Dev op acc total acc: 0.64
+Save model...
+Epoch 4 @ 2018-05-13 21:03:21.796635
+ Loss = 0.9898297262799208
+dev data size 500
+Dev op acc total acc: 0.704
+Save model...
+Epoch 5 @ 2018-05-13 21:03:36.185055
+ Loss = 0.8663611222224631
+dev data size 500
+Dev op acc total acc: 0.708
+Save model...
+Epoch 6 @ 2018-05-13 21:03:50.300437
+ Loss = 0.7626683039186023
+dev data size 500
+Dev op acc total acc: 0.724
+Save model...
+Epoch 7 @ 2018-05-13 21:04:04.901479
+ Loss = 0.6777120796569425
+dev data size 500
+Dev op acc total acc: 0.726
+Save model...
+Epoch 8 @ 2018-05-13 21:04:19.043384
+ Loss = 0.591141978984004
+dev data size 500
+Dev op acc total acc: 0.72
+Epoch 9 @ 2018-05-13 21:04:33.421427
+ Loss = 0.5397184268431046
+dev data size 500
+Dev op acc total acc: 0.73
+Save model...
+Epoch 10 @ 2018-05-13 21:04:47.768537
+ Loss = 0.46249269439409746
+dev data size 500
+Dev op acc total acc: 0.736
+Save model...
+Epoch 11 @ 2018-05-13 21:05:01.814741
+ Loss = 0.4358045808069266
+dev data size 500
+Dev op acc total acc: 0.76
+Save model...
+Epoch 12 @ 2018-05-13 21:05:15.625103
+ Loss = 0.37344558264925726
+dev data size 500
+Dev op acc total acc: 0.754
+Epoch 13 @ 2018-05-13 21:05:29.352842
+ Loss = 0.32475675274443305
+dev data size 500
+Dev op acc total acc: 0.756
+Epoch 14 @ 2018-05-13 21:05:43.368256
+ Loss = 0.310939809762242
+dev data size 500
+Dev op acc total acc: 0.752
+Epoch 15 @ 2018-05-13 21:05:57.372242
+ Loss = 0.2827734372671496
+dev data size 500
+Dev op acc total acc: 0.758
+Epoch 16 @ 2018-05-13 21:06:11.376707
+ Loss = 0.2461084668318262
+dev data size 500
+Dev op acc total acc: 0.764
+Save model...
+Epoch 17 @ 2018-05-13 21:06:25.241882
+ Loss = 0.222746359056517
+dev data size 500
+Dev op acc total acc: 0.76
+Epoch 18 @ 2018-05-13 21:06:39.063195
+ Loss = 0.20226542652707866
+dev data size 500
+Dev op acc total acc: 0.756
+Epoch 19 @ 2018-05-13 21:06:52.894483
+ Loss = 0.1932846713608153
+dev data size 500
+Dev op acc total acc: 0.728
+Epoch 20 @ 2018-05-13 21:07:06.666359
+ Loss = 0.1791205146130483
+dev data size 500
+Dev op acc total acc: 0.75
+Epoch 21 @ 2018-05-13 21:07:20.532814
+ Loss = 0.18439083830608347
+dev data size 500
+Dev op acc total acc: 0.728
+Epoch 22 @ 2018-05-13 21:07:34.399022
+ Loss = 0.15965722800777554
+dev data size 500
+Dev op acc total acc: 0.732
+Epoch 23 @ 2018-05-13 21:07:48.232176
+ Loss = 0.1432758637948485
+dev data size 500
+Dev op acc total acc: 0.75
+Epoch 24 @ 2018-05-13 21:08:02.007905
+ Loss = 0.1304055401674417
+dev data size 500
+Dev op acc total acc: 0.742
+Epoch 25 @ 2018-05-13 21:08:15.800256
+ Loss = 0.1118993972601489
+dev data size 500
+Dev op acc total acc: 0.756
+Epoch 26 @ 2018-05-13 21:08:30.006836
+ Loss = 0.10181363111247176
+dev data size 500
+Dev op acc total acc: 0.738
+Epoch 27 @ 2018-05-13 21:08:43.927437
+ Loss = 0.0993712890025832
+dev data size 500
+Dev op acc total acc: 0.732
+Epoch 28 @ 2018-05-13 21:08:57.677433
+ Loss = 0.0874862969554407
+dev data size 500
+Dev op acc total acc: 0.732
+Epoch 29 @ 2018-05-13 21:09:11.915763
+ Loss = 0.08524964814405869
+dev data size 500
+Dev op acc total acc: 0.76
+Epoch 30 @ 2018-05-13 21:09:26.070666
+ Loss = 0.07139809806129228
+dev data size 500
+Dev op acc total acc: 0.75
+Epoch 31 @ 2018-05-13 21:09:39.789294
+ Loss = 0.07297239232721349
+dev data size 500
+Dev op acc total acc: 0.746
+Epoch 32 @ 2018-05-13 21:09:53.459130
+ Loss = 0.057900231440340004
+dev data size 500
+Dev op acc total acc: 0.762
+Epoch 33 @ 2018-05-13 21:10:07.071559
+ Loss = 0.0497074684857141
+dev data size 500
+Dev op acc total acc: 0.752
+Epoch 34 @ 2018-05-13 21:10:20.632483
+ Loss = 0.10360620216705743
+dev data size 500
+Dev op acc total acc: 0.764
+Epoch 35 @ 2018-05-13 21:10:34.569778
+ Loss = 0.07650269419238266
+dev data size 500
+Dev op acc total acc: 0.758
+Epoch 36 @ 2018-05-13 21:10:48.387917
+ Loss = 0.04590104981038854
+dev data size 500
+Dev op acc total acc: 0.762
+Epoch 37 @ 2018-05-13 21:11:02.234277
+ Loss = 0.040707038629797444
+dev data size 500
+Dev op acc total acc: 0.778
+Save model...
+Epoch 38 @ 2018-05-13 21:11:16.232619
+ Loss = 0.036514674360492785
+dev data size 500
+Dev op acc total acc: 0.774
+Epoch 39 @ 2018-05-13 21:11:30.252754
+ Loss = 0.02824422727574272
+dev data size 500
+Dev op acc total acc: 0.764
+Epoch 40 @ 2018-05-13 21:11:44.231972
+ Loss = 0.028176271321709412
+dev data size 500
+Dev op acc total acc: 0.778
+
+
+
+### agg module
+
+
+Epoch 1 @ 2018-05-13 21:25:25.008275
+ Loss = 0.6051861595439713
+dev data size 1098
+Dev agg acc number predict acc:0.992714025501 total acc: 0.910746812386
+Save model...
+Epoch 2 @ 2018-05-13 21:26:02.209149
+ Loss = 0.20646490561846711
+dev data size 1098
+Dev agg acc number predict acc:0.992714025501 total acc: 0.910746812386
+Epoch 3 @ 2018-05-13 21:26:39.103113
+ Loss = 0.17315314341630184
+dev data size 1098
+Dev agg acc number predict acc:0.992714025501 total acc: 0.910746812386
+Epoch 4 @ 2018-05-13 21:27:16.462863
+ Loss = 0.1455795130953914
+dev data size 1098
+Dev agg acc number predict acc:0.992714025501 total acc: 0.912568306011
+Save model...
+Epoch 5 @ 2018-05-13 21:27:53.546897
+ Loss = 0.12560572007756016
+dev data size 1098
+Dev agg acc number predict acc:0.994535519126 total acc: 0.912568306011
+Save model...
+Epoch 6 @ 2018-05-13 21:28:30.438842
+ Loss = 0.10779763146884544
+dev data size 1098
+Dev agg acc number predict acc:0.995446265938 total acc: 0.917122040073
+Save model...
+Epoch 7 @ 2018-05-13 21:29:07.536919
+ Loss = 0.08657522887444925
+dev data size 1098
+Dev agg acc number predict acc:0.994535519126 total acc: 0.917122040073
+Epoch 8 @ 2018-05-13 21:29:44.602162
+ Loss = 0.07123340026141863
+dev data size 1098
+Dev agg acc number predict acc:0.994535519126 total acc: 0.927140255009
+Epoch 9 @ 2018-05-13 21:30:21.036843
+ Loss = 0.06225073045096457
+dev data size 1098
+Dev agg acc number predict acc:0.994535519126 total acc: 0.94262295082
+Epoch 10 @ 2018-05-13 21:30:56.745547
+ Loss = 0.05007375137542953
+dev data size 1098
+Dev agg acc number predict acc:0.994535519126 total acc: 0.940801457195
+Epoch 11 @ 2018-05-13 21:31:33.040019
+ Loss = 0.044311203828202576
+dev data size 1098
+Dev agg acc number predict acc:0.995446265938 total acc: 0.947176684882
+Save model...
+Epoch 12 @ 2018-05-13 21:32:09.552324
+ Loss = 0.03893552123057562
+dev data size 1098
+Dev agg acc number predict acc:0.995446265938 total acc: 0.911657559199
+Epoch 13 @ 2018-05-13 21:32:46.281188
+ Loss = 0.03193295246214293
+dev data size 1098
+Dev agg acc number predict acc:0.994535519126 total acc: 0.943533697632
+Epoch 14 @ 2018-05-13 21:33:22.490386
+ Loss = 0.02755909122907934
+dev data size 1098
+Dev agg acc number predict acc:0.99635701275 total acc: 0.943533697632
+Save model...
+Epoch 15 @ 2018-05-13 21:33:58.712372
+ Loss = 0.025130629841428904
+dev data size 1098
+Dev agg acc number predict acc:0.992714025501 total acc: 0.944444444444
+Epoch 16 @ 2018-05-13 21:34:35.195878
+ Loss = 0.029301651895695453
+dev data size 1098
+Dev agg acc number predict acc:0.997267759563 total acc: 0.944444444444
+Save model...
+Epoch 17 @ 2018-05-13 21:35:11.985909
+ Loss = 0.02160970172387539
+dev data size 1098
+Dev agg acc number predict acc:0.99635701275 total acc: 0.941712204007
+Epoch 18 @ 2018-05-13 21:35:49.397989
+ Loss = 0.01950294449410168
+dev data size 1098
+Dev agg acc number predict acc:0.998178506375 total acc: 0.941712204007
+Save model...
+Epoch 19 @ 2018-05-13 21:36:26.269022
+ Loss = 0.016894600648989445
+dev data size 1098
+Dev agg acc number predict acc:0.997267759563 total acc: 0.947176684882
+Epoch 20 @ 2018-05-13 21:37:02.772077
+ Loss = 0.01682656857044659
+dev data size 1098
+Dev agg acc number predict acc:0.998178506375 total acc: 0.941712204007
+Epoch 21 @ 2018-05-13 21:37:39.710695
+ Loss = 0.015764939150982954
+dev data size 1098
+Dev agg acc number predict acc:0.997267759563 total acc: 0.94262295082
+
+
+### root_tem
+
+
+Epoch 1 @ 2018-05-13 21:44:58.050476
+ Loss = 0.43524831546086923
+dev data size 500
+Dev root_tem acc total acc: 0.888
+Save model...
+Epoch 2 @ 2018-05-13 21:45:12.277006
+ Loss = 0.30128676057789905
+dev data size 500
+Dev root_tem acc total acc: 0.902
+Save model...
+Epoch 3 @ 2018-05-13 21:45:26.337055
+ Loss = 0.22144056301925172
+dev data size 500
+Dev root_tem acc total acc: 0.912
+Save model...
+Epoch 4 @ 2018-05-13 21:45:40.413723
+ Loss = 0.17127037098893588
+dev data size 500
+Dev root_tem acc total acc: 0.912
+Epoch 5 @ 2018-05-13 21:45:54.661847
+ Loss = 0.1125509487722077
+dev data size 500
+Dev root_tem acc total acc: 0.938
+Save model...
+Epoch 6 @ 2018-05-13 21:46:08.854454
+ Loss = 0.07001393770842541
+dev data size 500
+Dev root_tem acc total acc: 0.95
+Save model...
+Epoch 7 @ 2018-05-13 21:46:22.846250
+ Loss = 0.04879780426840261
+dev data size 500
+Dev root_tem acc total acc: 0.928
+Epoch 8 @ 2018-05-13 21:46:37.037694
+ Loss = 0.03420301324833561
+dev data size 500
+Dev root_tem acc total acc: 0.94
+Epoch 9 @ 2018-05-13 21:46:50.565634
+ Loss = 0.024162567999037293
+dev data size 500
+Dev root_tem acc total acc: 0.944
+Epoch 10 @ 2018-05-13 21:47:04.257302
+ Loss = 0.019359093942377593
+dev data size 500
+Dev root_tem acc total acc: 0.936
+Epoch 11 @ 2018-05-13 21:47:18.103659
+ Loss = 0.012318547532985334
+dev data size 500
+Dev root_tem acc total acc: 0.93
+Epoch 12 @ 2018-05-13 21:47:32.363114
+ Loss = 0.03930568606481902
+dev data size 500
+Dev root_tem acc total acc: 0.944
+Epoch 13 @ 2018-05-13 21:47:46.418568
+ Loss = 0.01038508508430223
+dev data size 500
+Dev root_tem acc total acc: 0.942
+Epoch 14 @ 2018-05-13 21:48:00.830107
+ Loss = 0.008789585443207485
+dev data size 500
+Dev root_tem acc total acc: 0.956
+Save model...
+Epoch 15 @ 2018-05-13 21:48:14.858762
+ Loss = 0.004721185404678638
+dev data size 500
+Dev root_tem acc total acc: 0.952
+Epoch 16 @ 2018-05-13 21:48:29.286519
+ Loss = 0.0037019574106463143
+dev data size 500
+Dev root_tem acc total acc: 0.952
+Epoch 17 @ 2018-05-13 21:48:43.516998
+ Loss = 0.00628569939410049
+dev data size 500
+Dev root_tem acc total acc: 0.94
+Epoch 18 @ 2018-05-13 21:48:57.746708
+ Loss = 0.003427158210728771
+dev data size 500
+Dev root_tem acc total acc: 0.954
+Epoch 19 @ 2018-05-13 21:49:12.091860
+ Loss = 0.0018474593368492875
+dev data size 500
+Dev root_tem acc total acc: 0.948
+Epoch 20 @ 2018-05-13 21:49:26.215365
+ Loss = 0.0025008060644059102
+dev data size 500
+Dev root_tem acc total acc: 0.944
+Epoch 21 @ 2018-05-13 21:49:40.440392
+ Loss = 0.004571931872988794
+dev data size 500
+Dev root_tem acc total acc: 0.954
+
+
+### des_asc
+
+
+Epoch 1 @ 2018-05-13 21:54:46.223510
+ Loss = 1.2782491201377777
+dev data size 162
+Dev des_asc acc total acc: 0.493827160494
+Save model...
+Epoch 2 @ 2018-05-13 21:54:50.698027
+ Loss = 0.981517815877156
+dev data size 162
+Dev des_asc acc total acc: 0.493827160494
+Epoch 3 @ 2018-05-13 21:54:54.883861
+ Loss = 0.7310122344867293
+dev data size 162
+Dev des_asc acc total acc: 0.493827160494
+Epoch 4 @ 2018-05-13 21:54:59.134393
+ Loss = 0.6645038333283849
+dev data size 162
+Dev des_asc acc total acc: 0.493827160494
+Epoch 5 @ 2018-05-13 21:55:03.271874
+ Loss = 0.6455602480704525
+dev data size 162
+Dev des_asc acc total acc: 0.512345679012
+Save model...
+Epoch 6 @ 2018-05-13 21:55:07.449787
+ Loss = 0.608471996956561
+dev data size 162
+Dev des_asc acc total acc: 0.734567901235
+Save model...
+Epoch 7 @ 2018-05-13 21:55:11.741598
+ Loss = 0.5560363921774439
+dev data size 162
+Dev des_asc acc total acc: 0.746913580247
+Save model...
+Epoch 8 @ 2018-05-13 21:55:16.009487
+ Loss = 0.5187335895486624
+dev data size 162
+Dev des_asc acc total acc: 0.771604938272
+Save model...
+Epoch 9 @ 2018-05-13 21:55:20.244554
+ Loss = 0.4723364109734455
+dev data size 162
+Dev des_asc acc total acc: 0.771604938272
+Epoch 10 @ 2018-05-13 21:55:24.482649
+ Loss = 0.42581747231713263
+dev data size 162
+Dev des_asc acc total acc: 0.783950617284
+Save model...
+Epoch 11 @ 2018-05-13 21:55:28.697427
+ Loss = 0.36590726145778796
+dev data size 162
+Dev des_asc acc total acc: 0.808641975309
+Save model...
+Epoch 12 @ 2018-05-13 21:55:32.996310
+ Loss = 0.3121768507971821
+dev data size 162
+Dev des_asc acc total acc: 0.820987654321
+Save model...
+Epoch 13 @ 2018-05-13 21:55:37.176865
+ Loss = 0.2680736828281219
+dev data size 162
+Dev des_asc acc total acc: 0.83950617284
+Save model...
+Epoch 14 @ 2018-05-13 21:55:41.426348
+ Loss = 0.24041300494986845
+dev data size 162
+Dev des_asc acc total acc: 0.858024691358
+Save model...
+Epoch 15 @ 2018-05-13 21:55:45.834159
+ Loss = 0.19232359381325273
+dev data size 162
+Dev des_asc acc total acc: 0.858024691358
+Epoch 16 @ 2018-05-13 21:55:50.010366
+ Loss = 0.17108752547976483
+dev data size 162
+Dev des_asc acc total acc: 0.858024691358
+
+### having module
+
+Epoch 1 @ 2018-05-13 22:07:04.836615
+ Loss = 0.6070463003484174
+dev data size 172
+Dev having acc total acc: 0.790697674419
+Save model...
+Epoch 2 @ 2018-05-13 22:07:10.643325
+ Loss = 0.5400428953782318
+dev data size 172
+Dev having acc total acc: 0.790697674419
+Epoch 3 @ 2018-05-13 22:07:16.163251
+ Loss = 0.4939222411225119
+dev data size 172
+Dev having acc total acc: 0.790697674419
+Epoch 4 @ 2018-05-13 22:07:21.708413
+ Loss = 0.41663935692719406
+dev data size 172
+Dev having acc total acc: 0.860465116279
+Save model...
+Epoch 5 @ 2018-05-13 22:07:27.310683
+ Loss = 0.2873452984222713
+dev data size 172
+Dev having acc total acc: 0.93023255814
+Save model...
+Epoch 6 @ 2018-05-13 22:07:32.890603
+ Loss = 0.16391248079065227
+dev data size 172
+Dev having acc total acc: 0.936046511628
+Save model...
+Epoch 7 @ 2018-05-13 22:07:38.575199
+ Loss = 0.12453276270183782
+dev data size 172
+Dev having acc total acc: 0.936046511628
+Epoch 8 @ 2018-05-13 22:07:44.280548
+ Loss = 0.12109307813065924
+dev data size 172
+Dev having acc total acc: 0.947674418605
+Save model...
+Epoch 9 @ 2018-05-13 22:07:50.134381
+ Loss = 0.08994023039601291
+dev data size 172
+Dev having acc total acc: 0.953488372093
+Save model...
+Epoch 10 @ 2018-05-13 22:07:55.859921
+ Loss = 0.07616707119619412
+dev data size 172
+Dev having acc total acc: 0.953488372093
+Epoch 11 @ 2018-05-13 22:08:01.520716
+ Loss = 0.06206620297357569
+dev data size 172
+Dev having acc total acc: 0.96511627907
+Save model...
+Epoch 12 @ 2018-05-13 22:08:07.228261
+ Loss = 0.0558796456306398
+dev data size 172
+Dev having acc total acc: 0.959302325581
+Epoch 13 @ 2018-05-13 22:08:12.868119
+ Loss = 0.043752681237986014
+dev data size 172
+Dev having acc total acc: 0.953488372093
+Epoch 14 @ 2018-05-13 22:08:18.422592
+ Loss = 0.03231917572186766
+dev data size 172
+Dev having acc total acc: 0.970930232558
+Save model...
+Epoch 15 @ 2018-05-13 22:08:24.018573
+ Loss = 0.028129130550232462
+dev data size 172
+Dev having acc total acc: 0.982558139535
+Save model...
+Epoch 16 @ 2018-05-13 22:08:29.671689
+ Loss = 0.016960890908794966
+dev data size 172
+Dev having acc total acc: 0.976744186047
