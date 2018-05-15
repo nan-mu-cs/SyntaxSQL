@@ -304,6 +304,8 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data):
                 index += 1
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens,
                                   gt_col=gt_col)
+        elif component == "andor":
+            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len)
         # score = model.forward(q_seq, col_seq, col_num, pred_entry,
         #         gt_where=gt_where_seq, gt_cond=gt_cond_seq, gt_sel=gt_sel_seq)
         # print("label {}".format(label))
@@ -417,6 +419,8 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
                 index += 1
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens,
                                   gt_col=gt_col)
+        elif component == "andor":
+            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len)
         # print("label {}".format(label))
         if component in ("agg","col","keyword"):
             num_err,err,_=model.check_acc(score,label)

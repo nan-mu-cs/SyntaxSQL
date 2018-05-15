@@ -45,7 +45,8 @@ class AndOrPredictor(nn.Module):
         hs_enc, _ = run_lstm(self.hs_lstm, hs_emb_var, hs_len)
 
         att_np_q = np.ones((B, max_q_len))
-        att_val_q = torch.from_numpy(att_np_q)
+        att_val_q = torch.from_numpy(att_np_q).float()
+        att_val_q = Variable(att_val_q.cuda())
         for idx, num in enumerate(q_len):
             if num < max_q_len:
                 att_val_q[idx, num:] = -100
@@ -53,9 +54,9 @@ class AndOrPredictor(nn.Module):
         q_weighted = (q_enc * att_prob_q.unsqueeze(2)).sum(1)
 
         # Same as the above, compute SQL history embedding weighted by column attentions
-        att_val_hc = torch.bmm(col_emb.unsqueeze(1), self.hs_att(hs_enc).transpose(1, 2)).squeeze()
         att_np_h = np.ones((B, max_hs_len))
-        att_val_h = torch.from_numpy(att_np_h)
+        att_val_h = torch.from_numpy(att_np_h).float()
+        att_val_h = Variable(att_val_h.cuda())
         for idx, num in enumerate(hs_len):
             if num < max_hs_len:
                 att_val_h[idx, num:] = -100
