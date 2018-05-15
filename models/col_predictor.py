@@ -106,11 +106,12 @@ class ColPredictor(nn.Module):
 
 
     def loss(self, score, truth):
+        #here suppose truth looks like [[[1, 4], 3], [], ...]
         loss = 0
         B = len(truth)
         col_num_score, col_score = score
         #loss for the column number
-        truth_num = [len(t)-1 for t in truth] # double check truth format and for test cases
+        truth_num = [len(t) - 1 for t in truth] # double check truth format and for test cases
         data = torch.from_numpy(np.array(truth_num))
         truth_num_var = Variable(data.cuda())
         loss += self.CE(col_num_score, truth_num_var)
@@ -119,7 +120,13 @@ class ColPredictor(nn.Module):
         # print("T {}".format(T))
         truth_prob = np.zeros((B, T), dtype=np.float32)
         for b in range(B):
-            truth_prob[b][truth[b]] = 1
+            gold_l = []
+            for t in truth[b]:
+                if isinstance(t, list):
+                    gold_l.extend(t)
+                else:
+                    gold_l.append(t)
+            truth_prob[b][gold_l] = 1
         data = torch.from_numpy(truth_prob)
         # print("data {}".format(data))
         # print("data {}".format(data.cuda()))
@@ -153,9 +160,28 @@ class ColPredictor(nn.Module):
             if col_num != len(t): # double check truth format and for test cases
                 num_err += 1
                 flag = False
-            if flag and set(col) != set(t):
-                err += 1
-                flag = False
+            #to eval col predicts, if the gold sql has JOIN and foreign key col, then both fks are acceptable
+            fk_list = []
+            regular = []
+            for l in t:
+                if isinstance(l, list):
+                    fk_list.append(l)
+                else:
+                    regular.append(l)
+
+            if flag: #double check
+                for c in col:
+                    for fk in fk_list:
+                        if c in fk:
+                            fk_list.remove(fk)
+                    for r in regular:
+                        if c == r:
+                            regular.remove(r)
+                
+                if len(fk_list) != 0 or len(regular) != 0:
+                    err += 1
+                    flag = False
+               
             if not flag:
                 tot_err += 1
 
