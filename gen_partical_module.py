@@ -15,7 +15,7 @@ if train_dev == "dev":
 train_data = json.load(open(train_data_path))
 history_option = "full"
 if len(sys.argv) > 2:
-    history_option = "part"
+    history_option = sys.argv[2]
 
 OLD_WHERE_OPS = ('not', 'between', '=', '>', '<', '>=', '<=', '!=', 'in', 'like', 'is', 'exists')
 NEW_WHERE_OPS = ('=','>','<','>=','<=','!=','like','not in','in','between')
@@ -301,11 +301,12 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
             if "orderBy" in label[1]:
                 stack.append(("orderBy",node[1]))
             if "groupBy" in label[1]:
-                if "having" in label:
+                if "having" in label[1]:
                     dataset['having_dataset'].append({
                         "question_tokens": question_tokens,
                         "ts": table_schema,
                         "history": history[:],
+                        "gt_col":node[1]["groupBy"][0][1],
                         "label": 1
                     })
                 else:
@@ -313,6 +314,7 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
                         "question_tokens": question_tokens,
                         "ts": table_schema,
                         "history": history[:],
+                        "gt_col":node[1]["groupBy"][0][1],
                         "label": 0
                     })
                 stack.append(("groupBy",node[1]))
@@ -328,6 +330,7 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
                         "question_tokens": question_tokens,
                         "ts": table_schema,
                         "history": history[:],
+                        "gt_col":node[1]["orderBy"][1][0][1][1],
                         "label": ORDER_OPS[orderby_ret[1]]
                     })
                     history.append(orderby_ret[1])
@@ -369,12 +372,13 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
                     if label-1 >= 0:
                         labels.append(label-1)
 
-
+                # print(node[2][0][1][2])
                 dataset['agg_dataset'].append({
                     "question_tokens": question_tokens,
                     "ts": table_schema,
                     "history": history[:],
-                    "label": labels
+                    "gt_col":node[2][0][1][2],
+                    "label": labels[:min(len(labels),3)]
                 })
                 if node[1] == "having":
                     stack.append(("op", node[2], "having"))
@@ -390,6 +394,7 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
                 "question_tokens": question_tokens,
                 "ts": table_schema,
                 "history": history[:],
+                "gt_col": node[1][0][1][2],
                 "label": labels
             })
 
@@ -405,16 +410,18 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
                         "question_tokens": question_tokens,
                         "ts": table_schema,
                         "history": history[:],
+                        "gt_col": node[1][0][1][2],
                         "label": 0
                     })
                 else:
-                    history.append("terminal")
                     dataset['root_tem_dataset'].append({
                         "question_tokens": question_tokens,
                         "ts": table_schema,
                         "history": history[:],
+                        "gt_col": node[1][0][1][2],
                         "label": 1
                     })
+                    # history.append("terminal")
 
             dataset['op_dataset'][-1]["label"] = labels
         elif node[0] == "where":

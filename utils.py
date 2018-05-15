@@ -90,8 +90,8 @@ def load_data(sql_paths, table_paths, use_small=False):
     return sql_data, table_data
 
 
-def load_train_dev_dataset(component,train_dev):
-    return json.load(open("./generated_data/{}_{}_dataset.json".format(train_dev,component)))
+def load_train_dev_dataset(component,train_dev,history):
+    return json.load(open("./generated_data/{}_{}_{}_dataset.json".format(history,train_dev,component)))
 
 def load_dataset(dataset_id, use_small=False):
     if dataset_id == 2:
@@ -252,7 +252,7 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data):
             index = 0
             for i in range(st,ed):
                 # print(i)
-                gt_col[index] = data[perm[i]]["history"][-1][2]
+                gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
 
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
@@ -265,7 +265,7 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data):
             index = 0
             for i in range(st, ed):
                 # print(i)
-                gt_col[index] = data[perm[i]]["history"][-1][2]
+                gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
         elif component == "root_tem":
@@ -276,8 +276,8 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data):
             # print(ed)
             index = 0
             for i in range(st, ed):
-                # print(data[perm[i]]["history"][-1])
-                gt_col[index] = data[perm[i]]["history"][-2][2]
+                # print(data[perm[i]]["history"])
+                gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
         elif component == "des_asc":
@@ -289,7 +289,7 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data):
             index = 0
             for i in range(st, ed):
                 # print(i)
-                gt_col[index] = data[perm[i]]["history"][-2][2]
+                gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
         elif component == 'having':
@@ -300,7 +300,7 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data):
             index = 0
             for i in range(st, ed):
                 # print(i)
-                gt_col[index] = data[perm[i]]["history"][-1][2]
+                gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens,
                                   gt_col=gt_col)
@@ -365,7 +365,7 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
             index = 0
             for i in range(st,ed):
                 # print(i)
-                gt_col[index] = data[perm[i]]["history"][-1][2]
+                gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
 
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
@@ -378,7 +378,7 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
             index = 0
             for i in range(st, ed):
                 # print(i)
-                gt_col[index] = data[perm[i]]["history"][-1][2]
+                gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
         elif component == "root_tem":
@@ -389,8 +389,8 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
             # print(ed)
             index = 0
             for i in range(st, ed):
-                # print(data[perm[i]]["history"][-1])
-                gt_col[index] = data[perm[i]]["history"][-2][2]
+                # print(data[perm[i]]["history"])
+                gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
         elif component == "des_asc":
@@ -402,7 +402,7 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
             index = 0
             for i in range(st, ed):
                 # print(i)
-                gt_col[index] = data[perm[i]]["history"][-2][2]
+                gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
         elif component == 'having':
@@ -413,7 +413,7 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
             index = 0
             for i in range(st, ed):
                 # print(i)
-                gt_col[index] = data[perm[i]]["history"][-1][2]
+                gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens,
                                   gt_col=gt_col)

@@ -34,6 +34,8 @@ if __name__ == '__main__':
                         help='set train components,available:[multi_sql,keyword,col,op,agg,root_tem,des_asc,having]')
     parser.add_argument('--epoch',type=int,default=500,
                         help='number of epoch for training')
+    parser.add_argument('--history', type=str, default='full',
+                        help='part or full history')
     args = parser.parse_args()
 
     N_word=300
@@ -54,8 +56,8 @@ if __name__ == '__main__':
     if args.train_component not in TRAIN_COMPONENTS:
         print("Invalid train component")
         exit(1)
-    train_data = load_train_dev_dataset(args.train_component,"train")
-    dev_data = load_train_dev_dataset(args.train_component, "dev")
+    train_data = load_train_dev_dataset(args.train_component,"train",args.history)
+    dev_data = load_train_dev_dataset(args.train_component, "dev",args.history)
     # sql_data, table_data, val_sql_data, val_table_data, \
     #         test_sql_data, test_table_data, \
     #         TRAIN_DB, DEV_DB, TEST_DB = load_dataset(args.dataset, use_small=USE_SMALL)
