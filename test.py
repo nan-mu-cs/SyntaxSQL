@@ -10,6 +10,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--train_emb', action='store_true',
             help='Train word embedding.')
+    parser.add_argument('--toy', action='store_true',
+                        help='If set, use small data; used for fast debugging.')
+
     args = parser.parse_args()
 
     N_word=300
@@ -33,12 +36,13 @@ if __name__ == '__main__':
 
     word_emb = load_word_emb('glove/glove.%dB.%dd.txt'%(B_word,N_word), \
             load_used=args.train_emb, use_small=USE_SMALL)
+    dev_data = load_train_dev_dataset(args.train_component, "dev", args.history)
     #word_emb = load_concat_wemb('glove/glove.42B.300d.txt', "/data/projects/paraphrase/generation/para-nmt-50m/data/paragram_sl999_czeng.txt")
 
     model = SuperModel(word_emb, N_word=N_word, gpu=GPU, trainable_emb = args.train_emb)
 
-    agg_m, sel_m, cond_m = best_model_name(args)
-    torch.save(model.state_dict(), "saved_models/{}_models.dump".format(args.train_component))
+    # agg_m, sel_m, cond_m = best_model_name(args)
+    # torch.save(model.state_dict(), "saved_models/{}_models.dump".format(args.train_component))
 
     print "Loading from modules..."
     model.multi_sql.load_state_dict(torch.load("saved_models/multi_sql_models.dump"))
@@ -50,5 +54,5 @@ if __name__ == '__main__':
     model.des_asc.load_state_dict(torch.load("saved_models/des_asc_models.dump"))
     model.having.load_state_dict(torch.load("saved_models/having_models.dump"))
 
-    test_acc(model, batch_size, data)
+    test_acc(model, BATCH_SIZE, data)
     #test_exec_acc()
