@@ -4,7 +4,7 @@ python gen_partical_module.py dev|train (full|part)
 
 import json
 import sys
-
+from collections import defaultdict
 train_dev = "train"
 if len(sys.argv) > 1:
     train_dev = sys.argv[1]
@@ -69,6 +69,20 @@ def index_to_column_name(index, table):
     table_name = table["table_names"][table_index]
     return table_name, column_name, index
 
+
+def get_label_cols(with_join,fk_dict,labels):
+    # list(set([l[1][i][0][2] for i in range(min(len(l[1]), 3))]))
+    cols = set()
+    ret = []
+    for i in range(len(labels)):
+        cols.add(labels[i][0][2])
+        if len(cols) > 3:
+            break
+    for col in cols:
+        ret.append(col)
+        if with_join:
+            ret.extend(fk_dict[col])
+    return [len(cols),ret]
 
 class MultiSqlPredictor:
     def __init__(self, question, sql, history):
@@ -242,6 +256,11 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
         table["column_types"]
     ]
     stack = [("root",sql)]
+    with_join = False
+    fk_dict = defaultdict(list)
+    for fk in table["foreign_keys"]:
+        fk_dict[fk[0]].append(fk[1])
+        fk_dict[fk[1]].append(fk[0])
     while len(stack) > 0:
         node = stack.pop()
         if node[0] == "root":
@@ -264,6 +283,7 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
             stack.append(("root",node[1]))
             stack.append(("root",node[2]))
         elif node[0] == "none":
+            with_join = len(node[1]["from"]["table_units"]) > 1
             history, label, sql = KeyWordPredictor(question_tokens, node[1], history).generate_output()
             label_idxs = []
             for item in label[1]:
@@ -324,7 +344,7 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
                     "question_tokens": question_tokens,
                     "ts": table_schema,
                     "history": history[:],
-                    "label": list(set([l[1][i][0][2] for i in range(min(len(l[1]), 3))]))
+                    "label":get_label_cols(with_join,fk_dict,l[1])
                 })
                 for col, sql_item in zip(l[1], s):
                     key = "{}{}{}".format(col[0][0],col[0][1],col[0][2])
@@ -417,7 +437,7 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
                     "question_tokens": question_tokens,
                     "ts": table_schema,
                     "history": history[:],
-                    "label": list(set([l[1][i][0][2] for i in range(min(len(l[1]), 3))]))
+                    "label": get_label_cols(with_join,fk_dict,l[1])
                 })
                 for col, sql_item in zip(l[1], s):
                     key = "{}{}{}".format(col[0][0], col[0][1], col[0][2])
@@ -438,7 +458,7 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
                     "question_tokens": question_tokens,
                     "ts": table_schema,
                     "history": history[:],
-                    "label": list(set([l[1][i][0][2] for i in range(min(len(l[1]), 3))]))
+                    "label": get_label_cols(with_join,fk_dict,l[1])
                 })
                 for col, sql_item in zip(l[1], s):
                     key = "{}{}{}".format(col[0][0], col[0][1], col[0][2])
