@@ -252,12 +252,17 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
                 "history": history[:],
                 "label": SQL_OPS[label]
             })
-            history.append("none")
-            stack.append((label,sql))
-            if label != "none":
-                stack.append(("none",node[1]))
+            history.append(label)
+            if label == "none":
+                stack.append((label,sql))
+            else:
+                node[1][label] = None
+                stack.append((label, node[1],sql))
+            # if label != "none":
+                # stack.append(("none",node[1]))
         elif node[0] in ('intersect', 'except', 'union'):
             stack.append(("root",node[1]))
+            stack.append(("root",node[2]))
         elif node[0] == "none":
             history, label, sql = KeyWordPredictor(question_tokens, node[1], history).generate_output()
             label_idxs = []
@@ -353,9 +358,10 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
                 })
                 if node[1] == "having":
                     stack.append(("op", node[2], "having"))
-                if len(labels) == 0:
-                    history.append("none")
-                else:
+                # if len(labels) == 0:
+                #     history.append("none")
+                # else:
+                if len(labels) > 0:
                     history.append(AGG_OPS[labels[0]+1])
         elif node[0] == "op":
             # history.append(node[1][0][1])
