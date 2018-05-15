@@ -25,11 +25,17 @@ class OpPredictor(nn.Module):
                 num_layers=N_depth, batch_first=True,
                 dropout=0.3, bidirectional=True)
 
+        self.q_num_att = nn.Linear(N_h, N_h)
+        self.hs_num_att = nn.Linear(N_h, N_h)
+        self.op_num_out_q = nn.Linear(N_h, N_h)
+        self.op_num_out_hs = nn.Linear(N_h, N_h)
+        self.op_num_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 2)) #for 1-2 op num, could be changed
+
         self.q_att = nn.Linear(N_h, N_h)
         self.hs_att = nn.Linear(N_h, N_h)
         self.op_out_q = nn.Linear(N_h, N_h)
         self.op_out_hs = nn.Linear(N_h, N_h)
-        self.op_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 12)) #for 10 operators
+        self.op_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 10)) #for 10 operators
 
         self.softmax = nn.Softmax() #dim=1
         self.CE = nn.CrossEntropyLoss()
@@ -55,6 +61,25 @@ class OpPredictor(nn.Module):
         for b in range(B):
             col_emb.append(col_enc[b, gt_col[b]])
         col_emb = torch.stack(col_emb)
+
+        # Predict op number
+        att_val_qc_num = torch.bmm(col_emb.unsqueeze(1), self.q_num_att(q_enc).transpose(1, 2)).squeeze()
+        for idx, num in enumerate(q_len):
+            if num < max_q_len:
+                att_val_qc_num[idx, num:] = -100
+        att_prob_qc_num = self.softmax(att_val_qc_num)
+        q_weighted_num = (q_enc * att_prob_qc_num.unsqueeze(2)).sum(1)
+
+        # Same as the above, compute SQL history embedding weighted by column attentions
+        att_val_hc_num = torch.bmm(col_emb.unsqueeze(1), self.hs_num_att(hs_enc).transpose(1, 2)).squeeze()
+        for idx, num in enumerate(hs_len):
+            if num < max_hs_len:
+                att_val_hc_num[idx, num:] = -100
+        att_prob_hc_num = self.softmax(att_val_hc_num)
+        hs_weighted_num = (hs_enc * att_prob_hc_num.unsqueeze(2)).sum(1)
+        # op_num_score: (B, 2)
+        op_num_score = self.op_num_out(self.op_num_out_q(q_weighted_num) + self.op_num_out_hs(hs_weighted_num))
+
         # Compute attention values between selected column and question tokens.
         # q_enc.transpose(1, 2): (B, hid_dim, max_q_len)
         # col_emb.squeeze(1): (B, 1, hid_dim)
@@ -83,27 +108,61 @@ class OpPredictor(nn.Module):
         # Compute prediction scores
         # op_score: (B, 10)
         op_score = self.op_out(self.op_out_q(q_weighted) + self.op_out_hs(hs_weighted))
-        # print("score {}".format(op_score))
-        return op_score
+
+        score = (op_num_score, op_score)
+
+        return score
 
 
     def loss(self, score, truth):
-        data = torch.from_numpy(np.array(truth))
+        loss = 0
+        B = len(truth)
+        op_num_score, op_score = score
+        # loss for the op number
+        truth_num = [len(t)-1 for t in truth] #num_score 0 maps to 1 in truth
+        data = torch.from_numpy(np.array(truth_num))
+        truth_num_var = Variable(data.cuda())
+        loss += self.CE(op_num_score, truth_num_var)
+        # loss for op
+        T = len(op_score[0])
+        truth_prob = np.zeros((B, T), dtype=np.float32)
+        for b in range(B):
+            truth_prob[b][truth[b]] = 1
+        data = torch.from_numpy(np.array(truth_prob))
         truth_var = Variable(data.cuda())
-        loss = self.CE(score, truth_var)
+        #loss += self.mlsml(op_score, truth_var)
+        loss += self.bce_logit(op_score, truth_var)
+        #pred_prob = self.sigm(op_score)
+        #bce_loss = -torch.mean( 3*(truth_var * \
+        #        torch.log(pred_prob+1e-10)) + \
+        #        (1-truth_var) * torch.log(1-pred_prob+1e-10) )
+        #loss += bce_loss
 
-        # print("loss {}".format(loss.data.cpu().numpy()))
         return loss
 
 
     def check_acc(self, score, truth):
-        err = 0
-        B = len(score)
+        num_err, err, tot_err = 0, 0, 0
+        B = len(truth)
         pred = []
+        op_num_score, op_score = [x.data.cpu().numpy() for x in score]
         for b in range(B):
-            pred.append(np.argmax(score[b].data.cpu().numpy()))
-        for b, (p, t) in enumerate(zip(pred, truth)):
-            if p != t:
-                err += 1
+            cur_pred = {}
+            op_num = np.argmax(op_num_score[b]) + 1 #num_score 0 maps to 1 in truth, must have at least one op
+            cur_pred['op_num'] = op_num
+            cur_pred['op'] = np.argsort(-op_score[b])[:op_num]
+            pred.append(cur_pred)
 
-        return err
+        for b, (p, t) in enumerate(zip(pred, truth)):
+            op_num, op = p['op_num'], p['op']
+            flag = True
+            if op_num != len(t):
+                num_err += 1
+                flag = False
+            if flag and set(op) != set(t):
+                err += 1
+                flag = False
+            if not flag:
+                tot_err += 1
+
+        return np.array((num_err, err, tot_err))
