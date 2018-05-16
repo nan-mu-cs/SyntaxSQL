@@ -422,7 +422,7 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
         elif component == "andor":
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len)
         # print("label {}".format(label))
-        if component in ("agg","col","keyword"):
+        if component in ("agg","col","keyword","op"):
             num_err,err,_=model.check_acc(score,label)
             total_number_error += num_err
             total_error += err

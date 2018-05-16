@@ -18,7 +18,7 @@ if len(sys.argv) > 2:
     history_option = sys.argv[2]
 
 OLD_WHERE_OPS = ('not', 'between', '=', '>', '<', '>=', '<=', '!=', 'in', 'like', 'is', 'exists')
-NEW_WHERE_OPS = ('=','>','<','>=','<=','!=','like','not in','in','between')
+NEW_WHERE_OPS = ('=','>','<','>=','<=','!=','like','not in','in','between','is')
 NEW_WHERE_DICT = {
     '=': 0,
     '>': 1,
@@ -29,7 +29,8 @@ NEW_WHERE_DICT = {
     'like': 6,
     'not in': 7,
     'in': 8,
-    'between': 9
+    'between': 9,
+    'is':10
 }
 # SQL_OPS = ('none','intersect', 'union', 'except')
 SQL_OPS = {
@@ -79,10 +80,12 @@ def get_label_cols(with_join,fk_dict,labels):
         if len(cols) > 3:
             break
     for col in cols:
-        ret.append(col)
-        if with_join:
-            ret.extend(fk_dict[col])
-    return [len(cols),ret]
+        # ret.append([col])
+        if with_join and len(fk_dict[col]) > 0:
+            ret.append([col]+fk_dict[col])
+        else:
+            ret.append(col)
+    return ret
 
 class MultiSqlPredictor:
     def __init__(self, question, sql, history):
@@ -390,6 +393,8 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
         elif node[0] == "op":
             # history.append(node[1][0][1])
             labels = []
+            # if len(labels) > 2:
+            #     print(question_tokens)
             dataset['op_dataset'].append({
                 "question_tokens": question_tokens,
                 "ts": table_schema,
@@ -422,7 +427,8 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
                         "label": 1
                     })
                     # history.append("terminal")
-
+            if len(labels) > 2:
+                print(question_tokens)
             dataset['op_dataset'][-1]["label"] = labels
         elif node[0] == "where":
             history.append(node[0])

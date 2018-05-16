@@ -35,7 +35,7 @@ class OpPredictor(nn.Module):
         self.hs_att = nn.Linear(N_h, N_h)
         self.op_out_q = nn.Linear(N_h, N_h)
         self.op_out_hs = nn.Linear(N_h, N_h)
-        self.op_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 10)) #for 10 operators
+        self.op_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 11)) #for 11 operators
 
         self.softmax = nn.Softmax() #dim=1
         self.CE = nn.CrossEntropyLoss()
