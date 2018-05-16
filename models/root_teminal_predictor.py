@@ -29,7 +29,8 @@ class RootTeminalPredictor(nn.Module):
         self.hs_att = nn.Linear(N_h, N_h)
         self.rt_out_q = nn.Linear(N_h, N_h)
         self.rt_out_hs = nn.Linear(N_h, N_h)
-        self.rt_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 2)) #for 10 operators
+        self.rt_out_c = nn.Linear(N_h, N_h)
+        self.rt_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 2)) #for 2 operators
 
         self.softmax = nn.Softmax() #dim=1
         self.CE = nn.CrossEntropyLoss()
@@ -70,7 +71,7 @@ class RootTeminalPredictor(nn.Module):
         att_prob_hc = self.softmax(att_val_hc)
         hs_weighted = (hs_enc * att_prob_hc.unsqueeze(2)).sum(1)
         # rt_score: (B, 2)
-        rt_score = self.rt_out(self.rt_out_q(q_weighted) + self.rt_out_hs(hs_weighted))
+        rt_score = self.rt_out(self.rt_out_q(q_weighted) + self.rt_out_hs(hs_weighted) + self.rt_out_c(col_emb))
 
         return rt_score
 
