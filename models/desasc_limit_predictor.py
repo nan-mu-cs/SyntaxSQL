@@ -29,6 +29,7 @@ class DesAscLimitPredictor(nn.Module):
         self.hs_att = nn.Linear(N_h, N_h)
         self.dat_out_q = nn.Linear(N_h, N_h)
         self.dat_out_hs = nn.Linear(N_h, N_h)
+        self.dat_out_c = nn.Linear(N_h, N_h)
         self.dat_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 4)) #for 4 desc/asc limit/none combinations
 
         self.softmax = nn.Softmax() #dim=1
@@ -70,7 +71,7 @@ class DesAscLimitPredictor(nn.Module):
         att_prob_hc = self.softmax(att_val_hc)
         hs_weighted = (hs_enc * att_prob_hc.unsqueeze(2)).sum(1)
         # dat_score: (B, 4)
-        dat_score = self.dat_out(self.dat_out_q(q_weighted) + self.dat_out_hs(hs_weighted))
+        dat_score = self.dat_out(self.dat_out_q(q_weighted) + self.dat_out_hs(hs_weighted) + self.dat_out_c(col_emb))
 
         return dat_score
 
