@@ -34,6 +34,7 @@ class ColPredictor(nn.Module):
         self.q_att = nn.Linear(N_h, N_h)
         self.hs_att = nn.Linear(N_h, N_h)
         self.col_out_q = nn.Linear(N_h, N_h)
+        self.col_out_c = nn.Linear(N_h, N_h)
         self.col_out_hs = nn.Linear(N_h, N_h)
         self.col_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 1))
 
@@ -75,6 +76,9 @@ class ColPredictor(nn.Module):
         for idx, num in enumerate(hs_len):
             if num < max_hs_len:
                 att_val_hc_num[idx, :, num:] = -100
+        for idx, num in enumerate(col_len):
+            if num < max_col_len:
+                att_val_hc_num[idx, num:, :] = -100
         att_prob_hc_num = self.softmax(att_val_hc_num.view((-1, max_hs_len))).view(B, -1, max_hs_len)
         hs_weighted_num = (hs_enc.unsqueeze(1) * att_prob_hc_num.unsqueeze(3)).sum(2).sum(1)
         # self.col_num_out: (B, 3)
@@ -98,7 +102,11 @@ class ColPredictor(nn.Module):
         hs_weighted = (hs_enc.unsqueeze(1) * att_prob_hc.unsqueeze(3)).sum(2)
         # Compute prediction scores
         # self.col_out.squeeze(): (B, max_col_len)
-        col_score = self.col_out(self.col_out_q(q_weighted) + self.col_out_hs(hs_weighted)).squeeze()
+        col_score = self.col_out(self.col_out_q(q_weighted) + self.col_out_hs(hs_weighted) + self.col_out_c(col_enc)).squeeze()
+        
+        for idx, num in enumerate(col_len):
+            if num < max_col_len:
+                col_score[idx, num:] = -100
 
         score = (col_num_score, col_score)
 

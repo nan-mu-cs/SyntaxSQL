@@ -29,12 +29,14 @@ class OpPredictor(nn.Module):
         self.hs_num_att = nn.Linear(N_h, N_h)
         self.op_num_out_q = nn.Linear(N_h, N_h)
         self.op_num_out_hs = nn.Linear(N_h, N_h)
+        self.op_num_out_c = nn.Linear(N_h, N_h)
         self.op_num_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 2)) #for 1-2 op num, could be changed
 
         self.q_att = nn.Linear(N_h, N_h)
         self.hs_att = nn.Linear(N_h, N_h)
         self.op_out_q = nn.Linear(N_h, N_h)
         self.op_out_hs = nn.Linear(N_h, N_h)
+        self.op_out_c = nn.Linear(N_h, N_h)
         self.op_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 11)) #for 11 operators
 
         self.softmax = nn.Softmax() #dim=1
@@ -78,7 +80,7 @@ class OpPredictor(nn.Module):
         att_prob_hc_num = self.softmax(att_val_hc_num)
         hs_weighted_num = (hs_enc * att_prob_hc_num.unsqueeze(2)).sum(1)
         # op_num_score: (B, 2)
-        op_num_score = self.op_num_out(self.op_num_out_q(q_weighted_num) + self.op_num_out_hs(hs_weighted_num))
+        op_num_score = self.op_num_out(self.op_num_out_q(q_weighted_num) + self.op_num_out_hs(hs_weighted_num) + self.op_num_out_c(col_emb))
 
         # Compute attention values between selected column and question tokens.
         # q_enc.transpose(1, 2): (B, hid_dim, max_q_len)
@@ -107,7 +109,7 @@ class OpPredictor(nn.Module):
 
         # Compute prediction scores
         # op_score: (B, 10)
-        op_score = self.op_out(self.op_out_q(q_weighted) + self.op_out_hs(hs_weighted))
+        op_score = self.op_out(self.op_out_q(q_weighted) + self.op_out_hs(hs_weighted) + self.op_out_c(col_emb))
 
         score = (op_num_score, op_score)
 

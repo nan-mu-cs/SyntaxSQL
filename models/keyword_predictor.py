@@ -37,6 +37,7 @@ class KeyWordPredictor(nn.Module):
         self.hs_att = nn.Linear(N_h, N_h)
         self.kw_out_q = nn.Linear(N_h, N_h)
         self.kw_out_hs = nn.Linear(N_h, N_h)
+        self.kw_out_kw = nn.Linear(N_h, N_h)
         self.kw_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 1))
 
         self.softmax = nn.Softmax() #dim=1
@@ -95,7 +96,7 @@ class KeyWordPredictor(nn.Module):
         hs_weighted = (hs_enc.unsqueeze(1) * att_prob_hskw.unsqueeze(3)).sum(2)
         # Compute prediction scores
         # self.kw_out.squeeze(): (B, 3)
-        kw_score = self.kw_out(self.kw_out_q(q_weighted) + self.kw_out_hs(hs_weighted)).squeeze()
+        kw_score = self.kw_out(self.kw_out_q(q_weighted) + self.kw_out_hs(hs_weighted) + self.kw_out_kw(kw_enc)).squeeze()
 
         score = (kw_num_score, kw_score)
 

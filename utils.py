@@ -327,6 +327,7 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
     perm = list(range(len(data)))
     st = 0
     total_number_error = 0.0
+    total_p_error = 0.0
     total_error = 0.0
     print("dev data size {}".format(len(data)))
     while st < len(data):
@@ -424,8 +425,9 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len)
         # print("label {}".format(label))
         if component in ("agg","col","keyword","op"):
-            num_err,_,err=model.check_acc(score,label)
+            num_err, p_err, err = model.check_acc(score, label)
             total_number_error += num_err
+            total_p_error += p_err
             total_error += err
         else:
             err = model.check_acc(score, label)
@@ -433,7 +435,7 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
         st = ed
 
     if component in ("agg","col","keyword","op"):
-        print("Dev {} acc number predict acc:{} total acc: {}".format(component,1 - total_number_error*1.0/len(data),1 - total_error*1.0/len(data)))
+        print("Dev {} acc number predict acc:{} partial acc: {} total acc: {}".format(component,1 - total_number_error*1.0/len(data),1 - total_p_error*1.0/len(data),  1 - total_error*1.0/len(data)))
         return 1 - total_error*1.0/len(data)
     else:
         print("Dev {} acc total acc: {}".format(component,1 - total_error*1.0/len(data)))
