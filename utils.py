@@ -8,6 +8,7 @@ from nltk import word_tokenize
 import sys
 sys.path.append(".")
 # import word_embedding
+from gen_partical_module import get_table_dict
 
 def lower_keys(x):
     if isinstance(x, list):
@@ -438,6 +439,14 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
         print("Dev {} acc total acc: {}".format(component,1 - total_error*1.0/len(data)))
         return 1 - total_error*1.0/len(data)
     return total_error
+
+def load_test_dataset():
+    return json.load(open("./data/dev.json"))
+
+def test_acc(model, batch_size, data):
+    table_dict = get_table_dict("./data/tables.json")
+    for item in data:
+        model.forward([item["query_toks"]]*batch_size,[],table_dict[item["db_id"]])
 
 def load_para_wemb(file_name):
     f = io.open(file_name, 'r', encoding='utf-8')

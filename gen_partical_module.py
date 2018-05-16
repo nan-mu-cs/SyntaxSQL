@@ -657,4 +657,5 @@ def parse_data(data):
         json.dump(dataset[key], open("./generated_data/{}_{}_{}.json".format(history_option,train_dev, key), "w"), indent=2)
 
 
-parse_data(train_data)
+if __name__ == '__main__':
+    parse_data(train_data)

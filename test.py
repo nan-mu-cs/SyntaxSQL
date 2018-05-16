@@ -33,10 +33,11 @@ if __name__ == '__main__':
 
     #TODO
     data = load_test_dataset()
+    # dev_data = load_train_dev_dataset(args.train_component, "dev", args.history)
 
     word_emb = load_word_emb('glove/glove.%dB.%dd.txt'%(B_word,N_word), \
             load_used=args.train_emb, use_small=USE_SMALL)
-    dev_data = load_train_dev_dataset(args.train_component, "dev", args.history)
+    # dev_data = load_train_dev_dataset(args.train_component, "dev", args.history)
     #word_emb = load_concat_wemb('glove/glove.42B.300d.txt', "/data/projects/paraphrase/generation/para-nmt-50m/data/paragram_sl999_czeng.txt")
 
     model = SuperModel(word_emb, N_word=N_word, gpu=GPU, trainable_emb = args.train_emb)

@@ -88,7 +88,9 @@ class WordEmbedding(nn.Module):
         for i,table in enumerate(tables):
             tnames = []
             table_embs = []
+            # print(table)
             for tname in table[0]:
+                # print(tname)
                 tname = tname.split()
                 tname_emb = []
                 for w in tname:
@@ -153,7 +155,7 @@ class WordEmbedding(nn.Module):
             history_val = []
             for item in one_history:
                 #col
-                if isinstance(item, list):
+                if isinstance(item, list) or isinstance(item, tuple):
                     emb_list = []
                     ws = item[0].split() + item[1].split()
                     ws_len = len(ws)

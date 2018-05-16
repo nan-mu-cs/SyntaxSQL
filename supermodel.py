@@ -90,8 +90,9 @@ class SuperModel(nn.Module):
 
     def forward(self, q_seq, history, tables):
         B = len(q_seq)
+        # print("Batch size:{}".format(B))
         q_emb_var, q_len = self.embed_layer.gen_x_q_batch(q_seq)
-        col_emb_var,col_len = self.embed_layer.gen_table_embedding(tables)
+        col_emb_var,col_len = self.embed_layer.gen_table_embedding([[tables["table_names"],tables["column_names"],tables["column_types"]]]*B)
 
         mkw_emb_var = self.embed_layer.gen_word_list_embedding(["none","except","intersect","union"],(B))
         mkw_len = np.full(q_len.shape, 4,dtype=np.int64)
@@ -100,19 +101,36 @@ class SuperModel(nn.Module):
 
         stack = Stack()
         stack.push("root")
-        history = ["root"]
+        history = [["root"]]*B
         andor_cond = ""
         has_limit = False
-        while stack:
+        # sql = {}
+        current_sql = {}
+        sql_stack = []
+        idx_stack = []
+        kw = ""
+        while not stack.isEmpty():
             vet = stack.pop()
             hs_emb_var, hs_len = self.embed_layer.gen_x_history_batch(history)
+            if len(idx_stack) > 0 and stack.size() < idx_stack[-1]:
+                idx_stack.pop()
+                current_sql = sql_stack.pop()
             # history.append(vet)
+            # print("hs_emb:{} hs_len:{}".format(hs_emb_var.size(),hs_len.size()))
             if vet == "root":
+                idx_stack.append(stack.size())
+                sql_stack.append(current_sql)
+                current_sql["sql"] = {}
+                current_sql = current_sql["sql"]
+                # print("q_emb_var:{} hs_emb_var:{} mkw_emb_var:{}".format(q_emb_var.size(),hs_emb_var.size(),mkw_emb_var.size()))
                 score = self.multi_sql.forward(q_emb_var,q_len,hs_emb_var,hs_len,mkw_emb_var,mkw_len)
                 label = np.argmax(score[0].data.cpu().numpy())
                 label = SQL_OPS[label]
-                history.append(label)
+                history[0].append(label)
                 stack.push(label)
+                if label != "none":
+                    current_sql["nested_label"] = label
+
             elif vet in ('intersect', 'except', 'union'):
                 stack.push("root")
                 stack.push("root")
@@ -120,13 +138,16 @@ class SuperModel(nn.Module):
                 score = self.key_word.forward(q_emb_var,q_len,hs_emb_var,hs_len,kw_emb_var,kw_len)
                 kw_num_score, kw_score = [x.data.cpu().numpy() for x in score]
                 num_kw = np.argmax(kw_num_score[0])
-                kw_score = np.argsort(-kw_score[0])[:num_kw]
-                kw_score.sort(reversed=True)
+                kw_score = list(np.argsort(-kw_score[0])[:num_kw])
+                kw_score.sort(reverse=True)
+                print("num_kw:{}".format(num_kw))
                 for kw in kw_score:
                     stack.push(KW_OPS[kw])
                 stack.push("select")
             elif vet in ("select","orderBy","where","groupBy","having"):
-                history.append(vet)
+                kw = vet
+                current_sql[kw] = []
+                history[0].append(vet)
                 stack.push(("col",vet))
                 # score = self.andor.forward(q_emb_var,q_len,hs_emb_var,hs_len)
                 # label = score[0].data.cpu().numpy()
@@ -135,6 +156,7 @@ class SuperModel(nn.Module):
             # elif vet == "groupBy":
             #     score = self.having.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,)
             elif isinstance(vet,tuple) and vet[0] == "col":
+                # print("q_emb_var:{} hs_emb_var:{} col_emb_var:{}".format(q_emb_var.size(), hs_emb_var.size(),col_emb_var.size()))
                 score = self.col.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len)
                 col_num_score, col_score = [x.data.cpu().numpy() for x in score]
                 col_num = np.argmax(col_num_score[0]) + 1  # double check
@@ -145,50 +167,73 @@ class SuperModel(nn.Module):
                     elif vet[1] != "groupBy":
                         stack.push(("agg",vet[1],col))
                     elif vet[1] == "groupBy":
-                        history.append(index_to_column_name(col, tables[0]))
+                        history[0].append(index_to_column_name(col, tables))
+                        current_sql[kw].append(col)
                 #predict and or or when there is multi col in where condition
                 if col_num > 1 and vet[1] == "where":
                     score = self.andor.forward(q_emb_var,q_len,hs_emb_var,hs_len)
                     label = np.argmax(score[0].data.cpu().numpy())
                     andor_cond = COND_OPS[label]
+                    current_sql[kw].append(andor_cond)
                 if vet[1] == "groupBy" and col_num > 0:
-                    score = self.having.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, cols[0])
+                    score = self.having.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, cols[0],dtype=np.int64))
                     label = np.argmax(score[0].data.cpu().numpy())
                     if label == 1:
                         stack.push("having")
                 # history.append(index_to_column_name(cols[-1], tables[0]))
             elif isinstance(vet,tuple) and vet[0] == "agg":
-                history.append(index_to_column_name(vet[2], tables[0]))
+                history[0].append(index_to_column_name(vet[2], tables))
+                current_sql[kw].append(index_to_column_name(vet[2], tables))
                 hs_emb_var, hs_len = self.embed_layer.gen_x_history_batch(history)
-                score = self.agg.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,vet[2])
+                score = self.agg.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,np.full(B, vet[2],dtype=np.int64))
                 agg_num_score, agg_score = [x.data.cpu().numpy() for x in score]
                 agg_num = np.argmax(agg_num_score[0])  # double check
                 agg_idxs = np.argsort(-agg_score[0])[:agg_num]
-                #TODO:check when 2 agg shows
+                # print("agg:{}".format([AGG_OPS[agg] for agg in agg_idxs]))
                 if len(agg_idxs) > 0:
-                    history.append(AGG_OPS[agg_idxs[0]])
+                    history[0].append(AGG_OPS[agg_idxs[0]])
+                for agg in agg_idxs[1:]:
+                    history[0].append(index_to_column_name(vet[2], tables))
+                    history[0].append(AGG_OPS[agg])
+                current_sql[kw].append([AGG_OPS[agg] for agg in agg_idxs])
                 if vet[1] == "having":
                     stack.push(("op","having",vet[2],agg_idxs))
                 if vet[1] == "orderBy":
                     stack.push(("des_asc",vet[2],agg_idxs))
             elif isinstance(vet,tuple) and vet[0] == "op":
+                current_sql[kw].append(index_to_column_name(vet[2], tables))
                 if vet[1] == "where":
-                    history.append(index_to_column_name(vet[2], tables[0]))
+                    history[0].append(index_to_column_name(vet[2], tables))
                     hs_emb_var, hs_len = self.embed_layer.gen_x_history_batch(history)
-                #TODO: check when 2 op shows
+                score = self.op.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,np.full(B, vet[2],dtype=np.int64))
+                op_num_score, op_score = [x.data.cpu().numpy() for x in score]
+                op_num = np.argmax(op_num_score[0]) + 1  # num_score 0 maps to 1 in truth, must have at least one op
+                ops = np.argsort(-op_score[0])[:op_num]
+                current_sql[kw].append([NEW_WHERE_OPS[op] for op in ops])
+                if op_num > 0:
+                    history[0].append(NEW_WHERE_OPS[ops[0]])
+                for op in ops[1:]:
+                    history[0].append(index_to_column_name(vet[2], tables))
+                    history[0].append(NEW_WHERE_OPS[op])
+                stack.push(("root_teminal",vet[2]))
             elif isinstance(vet,tuple) and vet[0] == "root_teminal":
-                score = self.root_teminal.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,vet[1])
+                score = self.root_teminal.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,np.full(B, vet[1],dtype=np.int64))
                 label = np.argmax(score[0].data.cpu().numpy())
                 label = ROOT_TERM_OPS[label]
                 if label == "root":
                     stack.push("root")
-                    history.append("root")
+                    history[0].append("root")
+                else:
+                    current_sql[kw].append("terminal")
             elif isinstance(vet,tuple) and vet[0] == "des_asc":
-                score = self.des_asc.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,vet[1])
+                score = self.des_asc.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,np.full(B, vet[1],dtype=np.int64))
                 label = np.argmax(score[0].data.cpu().numpy())
                 dec_asc,has_limit = DEC_ASC_OPS[label]
-                history.append(dec_asc)
-
+                history[0].append(dec_asc)
+                current_sql[kw].append(dec_asc)
+                current_sql[kw].append(has_limit)
+        print("sql:{}".format(current_sql))
+        # print("history:{}".format(history[0]))
         return history
 
 
