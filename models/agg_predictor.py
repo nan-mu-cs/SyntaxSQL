@@ -29,12 +29,14 @@ class AggPredictor(nn.Module):
         self.hs_num_att = nn.Linear(N_h, N_h)
         self.agg_num_out_q = nn.Linear(N_h, N_h)
         self.agg_num_out_hs = nn.Linear(N_h, N_h)
+        self.agg_num_out_c = nn.Linear(N_h, N_h)
         self.agg_num_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 4)) #for 0-3 agg num
 
         self.q_att = nn.Linear(N_h, N_h)
         self.hs_att = nn.Linear(N_h, N_h)
         self.agg_out_q = nn.Linear(N_h, N_h)
         self.agg_out_hs = nn.Linear(N_h, N_h)
+        self.agg_out_c = nn.Linear(N_h, N_h)
         self.agg_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 5)) #for 1-5 aggregators
 
         self.softmax = nn.Softmax() #dim=1
@@ -78,7 +80,7 @@ class AggPredictor(nn.Module):
         att_prob_hc_num = self.softmax(att_val_hc_num)
         hs_weighted_num = (hs_enc * att_prob_hc_num.unsqueeze(2)).sum(1)
         # agg_num_score: (B, 4)
-        agg_num_score = self.agg_num_out(self.agg_num_out_q(q_weighted_num) + self.agg_num_out_hs(hs_weighted_num))
+        agg_num_score = self.agg_num_out(self.agg_num_out_q(q_weighted_num) + self.agg_num_out_hs(hs_weighted_num) + self.agg_num_out_c(col_emb))
 
         # Predict aggregators
         att_val_qc = torch.bmm(col_emb.unsqueeze(1), self.q_att(q_enc).transpose(1, 2)).squeeze()
@@ -96,7 +98,7 @@ class AggPredictor(nn.Module):
         att_prob_hc = self.softmax(att_val_hc)
         hs_weighted = (hs_enc * att_prob_hc.unsqueeze(2)).sum(1)
         # agg_score: (B, 5)
-        agg_score = self.agg_out(self.agg_out_q(q_weighted) + self.agg_out_hs(hs_weighted))
+        agg_score = self.agg_out(self.agg_out_q(q_weighted) + self.agg_out_hs(hs_weighted) + self.agg_out_c(col_emb))
 
         score = (agg_num_score, agg_score)
 
