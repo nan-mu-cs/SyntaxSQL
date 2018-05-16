@@ -432,13 +432,12 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
             total_error += err
         st = ed
 
-    if component in ("agg","col","keyword"):
+    if component in ("agg","col","keyword","op"):
         print("Dev {} acc number predict acc:{} total acc: {}".format(component,1 - total_number_error*1.0/len(data),1 - total_error*1.0/len(data)))
-        return 1 - total_number_error*1.0/len(data),1 - total_error*1.0/len(data)
+        return 1 - total_error*1.0/len(data)
     else:
         print("Dev {} acc total acc: {}".format(component,1 - total_error*1.0/len(data)))
         return 1 - total_error*1.0/len(data)
-    return total_error
 
 def load_test_dataset():
     return json.load(open("./data/dev.json"))
