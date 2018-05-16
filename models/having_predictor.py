@@ -29,6 +29,7 @@ class HavingPredictor(nn.Module):
         self.hs_att = nn.Linear(N_h, N_h)
         self.hv_out_q = nn.Linear(N_h, N_h)
         self.hv_out_hs = nn.Linear(N_h, N_h)
+        self.hv_out_c = nn.Linear(N_h, N_h)
         self.hv_out = nn.Sequential(nn.Tanh(), nn.Linear(N_h, 2)) #for having/none
 
         self.softmax = nn.Softmax() #dim=1
@@ -70,7 +71,7 @@ class HavingPredictor(nn.Module):
         att_prob_hc = self.softmax(att_val_hc)
         hs_weighted = (hs_enc * att_prob_hc.unsqueeze(2)).sum(1)
         # hv_score: (B, 2)
-        hv_score = self.hv_out(self.hv_out_q(q_weighted) + self.hv_out_hs(hs_weighted))
+        hv_score = self.hv_out(self.hv_out_q(q_weighted) + self.hv_out_hs(hs_weighted) + self.hv_out_c(col_emb))
 
         return hv_score
 
