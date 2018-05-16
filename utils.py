@@ -445,7 +445,7 @@ def load_test_dataset():
 def test_acc(model, batch_size, data):
     table_dict = get_table_dict("./data/tables.json")
     for item in data:
-        model.forward([item["query_toks"]]*batch_size,[],table_dict[item["db_id"]])
+        model.forward([item["question_toks"]]*batch_size,[],table_dict[item["db_id"]])
 
 def load_para_wemb(file_name):
     f = io.open(file_name, 'r', encoding='utf-8')

@@ -25,6 +25,7 @@ ROOT_TERM_OPS = ("root","terminal")
 COND_OPS = ("and","or")
 DEC_ASC_OPS = (("asc",True),("asc",False),("desc",True),("desc",False))
 NEW_WHERE_OPS = ('=','>','<','>=','<=','!=','like','not in','in','between')
+KW_WITH_COL = ("select","where","groupBy","orderBy","having")
 class Stack:
      def __init__(self):
          self.items = []
@@ -90,6 +91,7 @@ class SuperModel(nn.Module):
 
     def forward(self, q_seq, history, tables):
         B = len(q_seq)
+        # print("q_seq:{}".format(q_seq))
         # print("Batch size:{}".format(B))
         q_emb_var, q_len = self.embed_layer.gen_x_q_batch(q_seq)
         col_emb_var,col_len = self.embed_layer.gen_table_embedding([[tables["table_names"],tables["column_names"],tables["column_types"]]]*B)
@@ -137,10 +139,12 @@ class SuperModel(nn.Module):
             elif vet == "none":
                 score = self.key_word.forward(q_emb_var,q_len,hs_emb_var,hs_len,kw_emb_var,kw_len)
                 kw_num_score, kw_score = [x.data.cpu().numpy() for x in score]
+                # print("kw_num_score:{}".format(kw_num_score))
+                # print("kw_score:{}".format(kw_score))
                 num_kw = np.argmax(kw_num_score[0])
                 kw_score = list(np.argsort(-kw_score[0])[:num_kw])
                 kw_score.sort(reverse=True)
-                print("num_kw:{}".format(num_kw))
+                # print("num_kw:{}".format(num_kw))
                 for kw in kw_score:
                     stack.push(KW_OPS[kw])
                 stack.push("select")
@@ -161,6 +165,9 @@ class SuperModel(nn.Module):
                 col_num_score, col_score = [x.data.cpu().numpy() for x in score]
                 col_num = np.argmax(col_num_score[0]) + 1  # double check
                 cols = np.argsort(-col_score[0])[:col_num]
+                # print(col_num)
+                # print("col_num_score:{}".format(col_num_score))
+                # print("col_score:{}".format(col_score))
                 for col in cols:
                     if vet[1] == "where":
                         stack.push(("op","where",col))
@@ -237,8 +244,93 @@ class SuperModel(nn.Module):
         return history
 
 
-    def gen_sql(self, history):
-        sql = []
+    def gen_select_group_by(self,sql,kw):
+        cols = {}
+        ret = []
+        for i in range(0,len(sql),2):
+            if len(sql[i+1]) == 0:
+                ret.append(sql[i][1])
+            ret.append("{}({})".format(sql[i+1],sql[i][1]))
+            cols.add("{}_{}".format(sql[i][0],sql[i][1]))
+        return "{} {}".format(kw,",".join(ret)),cols
+
+    def gen_where(self,sql):
+        pass
+
+
+
+    def gen_from(self,candidate_tables,table):
+        def find(d,col):
+            if d[col] == -1:
+                return col
+            return find(d,d[col])
+        def union(d,c1,c2):
+            r1 = find(d,c1)
+            r2 = find(d,c2)
+            if r1 == r2:
+                return
+            d[r1] = r2
+
+        ret = ""
+        if len(candidate_tables) <= 1:
+            if len(candidate_tables) == 1:
+                ret = "from {}".format(table["table_names"][candidate_tables[0]])
+            return {},ret
+        table_alias_dict = {}
+        uf_dict = {}
+        for t in candidate_tables:
+            uf_dict[t] = -1
+        idx = 1
+        for acol,bcol in table["foreign_keys"]:
+            t1 = table["column_names"][acol][0]
+            t2 = table["column_names"][bcol][0]
+            if t1 in candidate_tables and t2 in candidate_tables:
+                r1 = find(d,t1)
+                r2 = find(d,t2)
+                if r1 == r2:
+                    continue
+                union(d,t1,t2)
+                if len(ret) == 0:
+                    ret = "from {} as T{} join {} as T{} on T{}.{}=T{}.{}".format(table["table_names"][t1],idx,table["table_names"][t2],
+                                                                                  idx+1,idx,table["column_names"][acol][1],idx+1,
+                                                                                  table["column_names"][bcol][1])
+                    table_alias_dict[t1] = idx
+                    table_alias_dict[t2] = idx+1
+                    idx += 2
+                else:
+                    if t1 in table_alias_dict:
+                        old_t = t1
+                        new_t = t2
+                        acol,bcol = bcol,acol
+                    else:
+                        old_t = t2
+                        new_t = t1
+                    ret = "join {} as T{} on T{}.{}=T{}.{}".format(new_t,idx,idx,table["column_names"][acol][1],
+                                                                   table_alias_dict[old_t],table["column_names"][bcol][1])
+                    table_alias_dict[new_t] = idx
+                    idx += 1
+        if len(candidate_tables) != len(table_alias_dict):
+            print("error in generate from clause!!!!!")
+        return table_alias_dict,ret
+
+    def gen_sql(self, sql,table):
+        select_clause = ""
+        from_clause = ""
+        groupby_clause = ""
+        orderby_clause = ""
+        having_clause = ""
+        limit_clause = ""
+        cols = {}
+        candidate_tables = {}
+        for key in sql:
+            if key not in KW_WITH_COL:
+                continue
+            for item in sql[key]:
+                if isinstance(item,tuple) and len(item) == 3:
+                    if table["column_names"][item[2]][0] != -1:
+                        candidate_tables.add(table["column_names"][item[2]][0])
+        table_alias_dict,from_clause = self.gen_from(candidate_tables,table)
+
 
         return sql
 
