@@ -5,6 +5,8 @@ import argparse
 import numpy as np
 import torch.nn as nn
 import traceback
+from collections import defaultdict
+
 from utils import *
 from word_embedding import WordEmbedding
 from models.agg_predictor import AggPredictor
@@ -91,7 +93,7 @@ class SuperModel(nn.Module):
         self.sigm = nn.Sigmoid()
         if gpu:
             self.cuda()
-
+        self.path_not_found = 0
 
     def forward(self, q_seq, history, tables):
         B = len(q_seq)
@@ -390,7 +392,20 @@ class SuperModel(nn.Module):
                 ret.append("{} {} ({})".format(col, op, val))
         return "having {}".format(",".join(ret))
 
-
+    def find_shortest_path(self,start,end,graph):
+        stack = [[start,[]]]
+        visited = set()
+        while len(stack) > 0:
+            ele,history = stack.pop()
+            if ele == end:
+                return history
+            for node in graph[ele]:
+                if node[0] not in visited:
+                    stack.append((node[0],history+[(node[0],node[1])]))
+                    visited.add(node[0])
+        print("could not find path!!!!!{}".format(self.path_not_found))
+        self.path_not_found += 1
+        # return []
     def gen_from(self,candidate_tables,table):
         def find(d,col):
             if d[col] == -1:
@@ -408,52 +423,83 @@ class SuperModel(nn.Module):
             if len(candidate_tables) == 1:
                 ret = "from {}".format(table["table_names"][list(candidate_tables)[0]])
             return {},ret
+        # print("candidate:{}".format(candidate_tables))
         table_alias_dict = {}
         uf_dict = {}
         for t in candidate_tables:
             uf_dict[t] = -1
         idx = 1
+        graph = defaultdict(list)
         for acol,bcol in table["foreign_keys"]:
             t1 = table["column_names"][acol][0]
             t2 = table["column_names"][bcol][0]
-            if t1 in candidate_tables and t2 in candidate_tables:
-                r1 = find(uf_dict,t1)
-                r2 = find(uf_dict,t2)
-                if r1 == r2:
+            graph[t1].append((t2,(acol,bcol)))
+            graph[t2].append((t1,(bcol, acol)))
+            # if t1 in candidate_tables and t2 in candidate_tables:
+            #     r1 = find(uf_dict,t1)
+            #     r2 = find(uf_dict,t2)
+            #     if r1 == r2:
+            #         continue
+            #     union(uf_dict,t1,t2)
+            #     if len(ret) == 0:
+            #         ret = "from {} as T{} join {} as T{} on T{}.{}=T{}.{}".format(table["table_names"][t1],idx,table["table_names"][t2],
+            #                                                                       idx+1,idx,table["column_names_original"][acol][1],idx+1,
+            #                                                                       table["column_names_original"][bcol][1])
+            #         table_alias_dict[t1] = idx
+            #         table_alias_dict[t2] = idx+1
+            #         idx += 2
+            #     else:
+            #         if t1 in table_alias_dict:
+            #             old_t = t1
+            #             new_t = t2
+            #             acol,bcol = bcol,acol
+            #         elif t2 in table_alias_dict:
+            #             old_t = t2
+            #             new_t = t1
+            #         else:
+            #             ret = "{} join {} as T{} join {} as T{} on T{}.{}=T{}.{}".format(ret,table["table_names"][t1], idx,
+            #                                                                           table["table_names"][t2],
+            #                                                                           idx + 1, idx,
+            #                                                                           table["column_names_original"][acol][1],
+            #                                                                           idx + 1,
+            #                                                                           table["column_names_original"][bcol][1])
+            #             table_alias_dict[t1] = idx
+            #             table_alias_dict[t2] = idx + 1
+            #             idx += 2
+            #             continue
+            #         ret = "{} join {} as T{} on T{}.{}=T{}.{}".format(ret,new_t,idx,idx,table["column_names_original"][acol][1],
+            #                                                        table_alias_dict[old_t],table["column_names_original"][bcol][1])
+            #         table_alias_dict[new_t] = idx
+            #         idx += 1
+        # visited = set()
+        candidate_tables = list(candidate_tables)
+        start = candidate_tables[0]
+        table_alias_dict[start] = idx
+        idx += 1
+        ret = "from {} as T1".format(table["table_names_original"][start])
+        try:
+            for end in candidate_tables[1:]:
+                if end in table_alias_dict:
                     continue
-                union(uf_dict,t1,t2)
-                if len(ret) == 0:
-                    ret = "from {} as T{} join {} as T{} on T{}.{}=T{}.{}".format(table["table_names"][t1],idx,table["table_names"][t2],
-                                                                                  idx+1,idx,table["column_names_original"][acol][1],idx+1,
-                                                                                  table["column_names_original"][bcol][1])
-                    table_alias_dict[t1] = idx
-                    table_alias_dict[t2] = idx+1
-                    idx += 2
-                else:
-                    if t1 in table_alias_dict:
-                        old_t = t1
-                        new_t = t2
-                        acol,bcol = bcol,acol
-                    elif t2 in table_alias_dict:
-                        old_t = t2
-                        new_t = t1
-                    else:
-                        ret = "{} join {} as T{} join {} as T{} on T{}.{}=T{}.{}".format(ret,table["table_names"][t1], idx,
-                                                                                      table["table_names"][t2],
-                                                                                      idx + 1, idx,
-                                                                                      table["column_names_original"][acol][1],
-                                                                                      idx + 1,
-                                                                                      table["column_names_original"][bcol][1])
-                        table_alias_dict[t1] = idx
-                        table_alias_dict[t2] = idx + 1
-                        idx += 2
+                path = self.find_shortest_path(start, end, graph)
+                prev_table = start
+                for node, (acol, bcol) in path:
+                    if node in table_alias_dict:
+                        prev_table = node
                         continue
-                    ret = "{} join {} as T{} on T{}.{}=T{}.{}".format(ret,new_t,idx,idx,table["column_names_original"][acol][1],
-                                                                   table_alias_dict[old_t],table["column_names_original"][bcol][1])
-                    table_alias_dict[new_t] = idx
+                    table_alias_dict[node] = idx
                     idx += 1
-        if len(candidate_tables) != len(table_alias_dict):
-            print("error in generate from clause!!!!!")
+                    ret = "{} join {} as T{} on T{}.{}=T{}.{}".format(ret, table["table_names_original"][node],
+                                                                      table_alias_dict[node],
+                                                                      table_alias_dict[prev_table],
+                                                                      table["column_names_original"][acol][1],
+                                                                      table_alias_dict[node],
+                                                                      table["column_names_original"][bcol][1])
+                    prev_table = node
+        except:
+            return table_alias_dict,ret
+        # if len(candidate_tables) != len(table_alias_dict):
+        #     print("error in generate from clause!!!!!")
         return table_alias_dict,ret
 
     def gen_sql(self, sql,table):
