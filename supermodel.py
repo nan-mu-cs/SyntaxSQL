@@ -4,6 +4,7 @@ import datetime
 import argparse
 import numpy as np
 import torch.nn as nn
+import traceback
 from utils import *
 from word_embedding import WordEmbedding
 from models.agg_predictor import AggPredictor
@@ -44,6 +45,9 @@ class Stack:
 
      def size(self):
          return len(self.items)
+
+     def insert(self,i,x):
+         return self.items.insert(i,x)
 
 
 class SuperModel(nn.Module):
@@ -102,7 +106,7 @@ class SuperModel(nn.Module):
         kw_len = np.full(q_len.shape, 3, dtype=np.int64)
 
         stack = Stack()
-        stack.push("root")
+        stack.push(("root",None))
         history = [["root"]]*B
         andor_cond = ""
         has_limit = False
@@ -110,20 +114,36 @@ class SuperModel(nn.Module):
         current_sql = {}
         sql_stack = []
         idx_stack = []
+        kw_stack = []
         kw = ""
+        nested_label = ""
+        has_having = False
         while not stack.isEmpty():
             vet = stack.pop()
             hs_emb_var, hs_len = self.embed_layer.gen_x_history_batch(history)
             if len(idx_stack) > 0 and stack.size() < idx_stack[-1]:
+                # print("pop!!!!!!!!!!!!!!!!!!!!!!")
                 idx_stack.pop()
                 current_sql = sql_stack.pop()
+                kw = kw_stack.pop()
+                # current_sql = current_sql["sql"]
             # history.append(vet)
             # print("hs_emb:{} hs_len:{}".format(hs_emb_var.size(),hs_len.size()))
-            if vet == "root":
-                idx_stack.append(stack.size())
-                sql_stack.append(current_sql)
-                current_sql["sql"] = {}
-                current_sql = current_sql["sql"]
+            if isinstance(vet,tuple) and vet[0] == "root":
+                if vet[1] != "orignal":
+                    idx_stack.append(stack.size())
+                    sql_stack.append(current_sql)
+                    kw_stack.append(kw)
+                if "sql" in current_sql:
+                    current_sql["nested_sql"] = {}
+                    current_sql["nested_label"] = nested_label
+                    current_sql = current_sql["nested_sql"]
+                elif isinstance(vet[1],dict):
+                    vet[1]["sql"] = {}
+                    current_sql = vet[1]["sql"]
+                elif vet[1] != "orignal":
+                    current_sql["sql"] = {}
+                    current_sql = current_sql["sql"]
                 # print("q_emb_var:{} hs_emb_var:{} mkw_emb_var:{}".format(q_emb_var.size(),hs_emb_var.size(),mkw_emb_var.size()))
                 score = self.multi_sql.forward(q_emb_var,q_len,hs_emb_var,hs_len,mkw_emb_var,mkw_len)
                 label = np.argmax(score[0].data.cpu().numpy())
@@ -131,11 +151,11 @@ class SuperModel(nn.Module):
                 history[0].append(label)
                 stack.push(label)
                 if label != "none":
-                    current_sql["nested_label"] = label
+                    nested_label = label
 
             elif vet in ('intersect', 'except', 'union'):
-                stack.push("root")
-                stack.push("root")
+                stack.push(("root","orignal"))
+                stack.push(("root",None))
             elif vet == "none":
                 score = self.key_word.forward(q_emb_var,q_len,hs_emb_var,hs_len,kw_emb_var,kw_len)
                 kw_num_score, kw_score = [x.data.cpu().numpy() for x in score]
@@ -171,11 +191,11 @@ class SuperModel(nn.Module):
                 for col in cols:
                     if vet[1] == "where":
                         stack.push(("op","where",col))
-                    elif vet[1] != "groupBy":
+                    else:
                         stack.push(("agg",vet[1],col))
-                    elif vet[1] == "groupBy":
-                        history[0].append(index_to_column_name(col, tables))
-                        current_sql[kw].append(col)
+                    # elif vet[1] == "groupBy":
+                    #     history[0].append(index_to_column_name(col, tables))
+                    #     current_sql[kw].append(index_to_column_name(col, tables))
                 #predict and or or when there is multi col in where condition
                 if col_num > 1 and vet[1] == "where":
                     score = self.andor.forward(q_emb_var,q_len,hs_emb_var,hs_len)
@@ -186,11 +206,22 @@ class SuperModel(nn.Module):
                     score = self.having.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, cols[0],dtype=np.int64))
                     label = np.argmax(score[0].data.cpu().numpy())
                     if label == 1:
-                        stack.push("having")
+                        has_having = (label == 1)
+                        # stack.insert(-col_num,"having")
+                        # stack.push("having")
                 # history.append(index_to_column_name(cols[-1], tables[0]))
             elif isinstance(vet,tuple) and vet[0] == "agg":
                 history[0].append(index_to_column_name(vet[2], tables))
-                current_sql[kw].append(index_to_column_name(vet[2], tables))
+                if vet[1] != "having":
+                    try:
+                        current_sql[kw].append(index_to_column_name(vet[2], tables))
+                    except Exception as e:
+                        # print(e)
+                        traceback.print_exc()
+                        print("history:{},current_sql:{} stack:{}".format(history[0], current_sql,stack.items))
+                        print("idx_stack:{}".format(idx_stack))
+                        print("sql_stack:{}".format(sql_stack))
+                        exit(1)
                 hs_emb_var, hs_len = self.embed_layer.gen_x_history_batch(history)
                 score = self.agg.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,np.full(B, vet[2],dtype=np.int64))
                 agg_num_score, agg_score = [x.data.cpu().numpy() for x in score]
@@ -199,37 +230,82 @@ class SuperModel(nn.Module):
                 # print("agg:{}".format([AGG_OPS[agg] for agg in agg_idxs]))
                 if len(agg_idxs) > 0:
                     history[0].append(AGG_OPS[agg_idxs[0]])
+                    if vet[1] != "having":
+                        current_sql[kw].append(AGG_OPS[agg_idxs[0]])
+                    else:
+                        stack.push(("op","having",vet[2],agg_idxs[0]))
                 for agg in agg_idxs[1:]:
                     history[0].append(index_to_column_name(vet[2], tables))
                     history[0].append(AGG_OPS[agg])
-                current_sql[kw].append([AGG_OPS[agg] for agg in agg_idxs])
-                if vet[1] == "having":
-                    stack.push(("op","having",vet[2],agg_idxs))
+                    if vet[1] != "having":
+                        current_sql[kw].append(index_to_column_name(vet[2], tables))
+                        current_sql[kw].append(AGG_OPS[agg])
+                    else:
+                        stack.push(("op", "having", vet[2], AGG_OPS[agg]))
+                if len(agg_idxs) == 0:
+                    if vet[1] != "having":
+                        current_sql[kw].append("none_agg")
+                    else:
+                        stack.push(("op", "having", vet[2], "none_agg"))
+                # current_sql[kw].append([AGG_OPS[agg] for agg in agg_idxs])
+                # if vet[1] == "having":
+                #     stack.push(("op","having",vet[2],agg_idxs))
                 if vet[1] == "orderBy":
                     stack.push(("des_asc",vet[2],agg_idxs))
+                if vet[1] == "groupBy" and has_having:
+                    stack.push("having")
             elif isinstance(vet,tuple) and vet[0] == "op":
-                current_sql[kw].append(index_to_column_name(vet[2], tables))
                 if vet[1] == "where":
+                    # current_sql[kw].append(index_to_column_name(vet[2], tables))
                     history[0].append(index_to_column_name(vet[2], tables))
                     hs_emb_var, hs_len = self.embed_layer.gen_x_history_batch(history)
                 score = self.op.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,np.full(B, vet[2],dtype=np.int64))
                 op_num_score, op_score = [x.data.cpu().numpy() for x in score]
                 op_num = np.argmax(op_num_score[0]) + 1  # num_score 0 maps to 1 in truth, must have at least one op
                 ops = np.argsort(-op_score[0])[:op_num]
-                current_sql[kw].append([NEW_WHERE_OPS[op] for op in ops])
+                # current_sql[kw].append([NEW_WHERE_OPS[op] for op in ops])
                 if op_num > 0:
                     history[0].append(NEW_WHERE_OPS[ops[0]])
+                    if vet[1] == "having":
+                        stack.push(("root_teminal", vet[2],vet[3],ops[0]))
+                    else:
+                        stack.push(("root_teminal", vet[2],ops[0]))
+                    # current_sql[kw].append(NEW_WHERE_OPS[ops[0]])
                 for op in ops[1:]:
                     history[0].append(index_to_column_name(vet[2], tables))
                     history[0].append(NEW_WHERE_OPS[op])
-                stack.push(("root_teminal",vet[2]))
+                    # current_sql[kw].append(index_to_column_name(vet[2], tables))
+                    # current_sql[kw].append(NEW_WHERE_OPS[op])
+                    if vet[1] == "having":
+                        stack.push(("root_teminal", vet[2],vet[3],op))
+                    else:
+                        stack.push(("root_teminal", vet[2],op))
+                # stack.push(("root_teminal",vet[2]))
             elif isinstance(vet,tuple) and vet[0] == "root_teminal":
                 score = self.root_teminal.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,np.full(B, vet[1],dtype=np.int64))
                 label = np.argmax(score[0].data.cpu().numpy())
                 label = ROOT_TERM_OPS[label]
+                if len(vet) == 4:
+                    current_sql[kw].append(index_to_column_name(vet[1], tables))
+                    current_sql[kw].append(vet[2])
+                    current_sql[kw].append(NEW_WHERE_OPS[vet[3]])
+                else:
+                    # print("kw:{}".format(kw))
+                    try:
+                        current_sql[kw].append(index_to_column_name(vet[1], tables))
+                    except Exception as e:
+                        # print(e)
+                        traceback.print_exc()
+                        print("history:{},current_sql:{} stack:{}".format(history[0], current_sql, stack.items))
+                        print("idx_stack:{}".format(idx_stack))
+                        print("sql_stack:{}".format(sql_stack))
+                        exit(1)
+                    current_sql[kw].append(NEW_WHERE_OPS[vet[2]])
                 if label == "root":
-                    stack.push("root")
                     history[0].append("root")
+                    current_sql[kw].append({})
+                    # current_sql = current_sql[kw][-1]
+                    stack.push(("root",current_sql[kw][-1]))
                 else:
                     current_sql[kw].append("terminal")
             elif isinstance(vet,tuple) and vet[0] == "des_asc":
@@ -239,24 +315,80 @@ class SuperModel(nn.Module):
                 history[0].append(dec_asc)
                 current_sql[kw].append(dec_asc)
                 current_sql[kw].append(has_limit)
-        print("sql:{}".format(current_sql))
+        # print("{}".format(current_sql))
         # print("history:{}".format(history[0]))
-        return history
+        if len(sql_stack) > 0:
+            current_sql = sql_stack[0]
+        # print("{}".format(current_sql))
+        return current_sql
 
 
-    def gen_select_group_by(self,sql,kw):
-        cols = {}
+    def gen_col(self,col,table,table_alias_dict):
+        colname = col[1]
+        table_idx = table["column_names_original"][col[2]][0]
+        if table_idx not in table_alias_dict:
+            return colname
+        return "T{}.{}".format(table_alias_dict[table_idx],colname)
+
+    def gen_select_group_by(self,sql,kw,table,table_alias_dict):
         ret = []
         for i in range(0,len(sql),2):
-            if len(sql[i+1]) == 0:
-                ret.append(sql[i][1])
-            ret.append("{}({})".format(sql[i+1],sql[i][1]))
-            cols.add("{}_{}".format(sql[i][0],sql[i][1]))
-        return "{} {}".format(kw,",".join(ret)),cols
+            # if len(sql[i+1]) == 0:
+            if sql[i+1] == "none_agg":
+                ret.append(self.gen_col(sql[i],table,table_alias_dict))
+            else:
+                ret.append("{}({})".format(sql[i+1], self.gen_col(sql[i], table, table_alias_dict)))
+            # for agg in sql[i+1]:
+            #     ret.append("{}({})".format(agg,gen_col(sql[i],table,table_alias_dict)))
+        return "{} {}".format(kw,",".join(ret))
 
-    def gen_where(self,sql):
-        pass
+    def gen_where(self,sql,table,table_alias_dict):
+        if len(sql) == 0:
+            return ""
+        start_idx = 0
+        andor = "and"
+        if isinstance(sql[0],basestring):
+            start_idx += 1
+            andor = sql[0]
+        ret = []
+        for i in range(start_idx,len(sql),3):
+            col = self.gen_col(sql[i],table,table_alias_dict)
+            op = sql[i+1]
+            val = sql[i+2]
+            if val == "terminal":
+                ret.append("{} {} '{}'".format(col,op,val))
+            else:
+                val = self.gen_sql(val,table)
+                ret.append("{} {} ({})".format(col,op,val))
+        return "where {}".format(andor.join(ret))
 
+    def gen_orderby(self,sql,table,table_alias_dict):
+        ret = []
+        limit = ""
+        if sql[-1]:
+            limit = "limit 1"
+        for i in range(0,len(sql)-2,2):
+            if sql[i+1] == "none_agg":
+                ret.append(self.gen_col(sql[i],table,table_alias_dict))
+            else:
+                ret.append("{}({})".format(sql[i+1], self.gen_col(sql[i], table, table_alias_dict)))
+        return "order by {} {} {}".format(",".join(ret),sql[-2],limit)
+
+    def gen_having(self,sql,table,table_alias_dict):
+        ret = []
+        for i in range(0,len(sql),4):
+            if sql[i+1] == "none_agg":
+                col = self.gen_col(sql[i],table,table_alias_dict)
+            else:
+                col = "{}({})".format(sql[i+1], self.gen_col(sql[i], table, table_alias_dict))
+            op = sql[i+2]
+            val = sql[i+3]
+            if val == "terminal":
+                ret.append("{} {} '{}'".format(col,op,val))
+            else:
+                val = self.gen_sql(val, table)
+                ret.append("{} {} ({})".format(col, op, val))
+        return "having {}".format(",".join(ret))
 
 
     def gen_from(self,candidate_tables,table):
@@ -274,7 +406,7 @@ class SuperModel(nn.Module):
         ret = ""
         if len(candidate_tables) <= 1:
             if len(candidate_tables) == 1:
-                ret = "from {}".format(table["table_names"][candidate_tables[0]])
+                ret = "from {}".format(table["table_names"][list(candidate_tables)[0]])
             return {},ret
         table_alias_dict = {}
         uf_dict = {}
@@ -285,15 +417,15 @@ class SuperModel(nn.Module):
             t1 = table["column_names"][acol][0]
             t2 = table["column_names"][bcol][0]
             if t1 in candidate_tables and t2 in candidate_tables:
-                r1 = find(d,t1)
-                r2 = find(d,t2)
+                r1 = find(uf_dict,t1)
+                r2 = find(uf_dict,t2)
                 if r1 == r2:
                     continue
-                union(d,t1,t2)
+                union(uf_dict,t1,t2)
                 if len(ret) == 0:
                     ret = "from {} as T{} join {} as T{} on T{}.{}=T{}.{}".format(table["table_names"][t1],idx,table["table_names"][t2],
-                                                                                  idx+1,idx,table["column_names"][acol][1],idx+1,
-                                                                                  table["column_names"][bcol][1])
+                                                                                  idx+1,idx,table["column_names_original"][acol][1],idx+1,
+                                                                                  table["column_names_original"][bcol][1])
                     table_alias_dict[t1] = idx
                     table_alias_dict[t2] = idx+1
                     idx += 2
@@ -302,11 +434,22 @@ class SuperModel(nn.Module):
                         old_t = t1
                         new_t = t2
                         acol,bcol = bcol,acol
-                    else:
+                    elif t2 in table_alias_dict:
                         old_t = t2
                         new_t = t1
-                    ret = "join {} as T{} on T{}.{}=T{}.{}".format(new_t,idx,idx,table["column_names"][acol][1],
-                                                                   table_alias_dict[old_t],table["column_names"][bcol][1])
+                    else:
+                        ret = "{} join {} as T{} join {} as T{} on T{}.{}=T{}.{}".format(ret,table["table_names"][t1], idx,
+                                                                                      table["table_names"][t2],
+                                                                                      idx + 1, idx,
+                                                                                      table["column_names_original"][acol][1],
+                                                                                      idx + 1,
+                                                                                      table["column_names_original"][bcol][1])
+                        table_alias_dict[t1] = idx
+                        table_alias_dict[t2] = idx + 1
+                        idx += 2
+                        continue
+                    ret = "{} join {} as T{} on T{}.{}=T{}.{}".format(ret,new_t,idx,idx,table["column_names_original"][acol][1],
+                                                                   table_alias_dict[old_t],table["column_names_original"][bcol][1])
                     table_alias_dict[new_t] = idx
                     idx += 1
         if len(candidate_tables) != len(table_alias_dict):
@@ -319,9 +462,18 @@ class SuperModel(nn.Module):
         groupby_clause = ""
         orderby_clause = ""
         having_clause = ""
-        limit_clause = ""
+        where_clause = ""
+        nested_clause = ""
         cols = {}
-        candidate_tables = {}
+        candidate_tables = set()
+        nested_sql = {}
+        nested_label = ""
+        if "sql" in sql:
+            sql = sql["sql"]
+        if "nested_label" in sql:
+            nested_label = sql["nested_label"]
+            nested_sql = sql["nested_sql"]
+            sql = sql["sql"]
         for key in sql:
             if key not in KW_WITH_COL:
                 continue
@@ -330,9 +482,34 @@ class SuperModel(nn.Module):
                     if table["column_names"][item[2]][0] != -1:
                         candidate_tables.add(table["column_names"][item[2]][0])
         table_alias_dict,from_clause = self.gen_from(candidate_tables,table)
-
-
-        return sql
+        ret = []
+        if "select" in sql:
+            select_clause = self.gen_select_group_by(sql["select"],"select",table,table_alias_dict)
+            if len(select_clause) > 0:
+                ret.append(select_clause)
+        if len(from_clause) > 0:
+            ret.append(from_clause)
+        if "groupBy" in sql:
+            groupby_clause = self.gen_select_group_by(sql["groupBy"],"group by",table,table_alias_dict)
+            if len(groupby_clause) > 0:
+                ret.append(groupby_clause)
+        if "where" in sql:
+            where_clause = self.gen_where(sql["where"],table,table_alias_dict)
+            if len(where_clause) > 0:
+                ret.append(where_clause)
+        if "orderBy" in sql:
+            orderby_clause = self.gen_orderby(sql["orderBy"],table,table_alias_dict)
+            if len(orderby_clause) > 0:
+                ret.append(orderby_clause)
+        if "having" in sql:
+            having_clause = self.gen_having(sql["having"],table,table_alias_dict)
+            if len(having_clause) > 0:
+                ret.append(having_clause)
+        if len(nested_label) > 0:
+            nested_clause = "{} {}".format(nested_label,self.gen_sql(nested_sql,table))
+            if len(nested_clause) > 0:
+                ret.append(nested_clause)
+        return " ".join(ret)
 
     def check_acc(self, pred_sql, gt_sql):
         pass
