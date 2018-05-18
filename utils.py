@@ -446,11 +446,18 @@ def load_test_dataset():
 
 def test_acc(model, batch_size, data):
     table_dict = get_table_dict("./data/tables.json")
-    for item in data:
+    f = open("predict.txt","w")
+    for item in data[:20]:
         sql = model.forward([item["question_toks"]]*batch_size,[],table_dict[item["db_id"]])
-        # print(sql)
+        print(sql)
         sql = model.gen_sql(sql,table_dict[item["db_id"]])
+        print(sql)
+        print("")
+        f.write("{}\n".format(sql))
         # print(sql)
+    # sql = {'nested_sql': {'where': [(u'takes classes', u'year', 35), '=', 'terminal'], 'select': [(u'section', u'year', 18), 'none_agg']}, 'nested_label': 'intersect', 'sql': {'where': [(u'takes classes', u'year', 35), '=', 'terminal'], 'select': [(u'course', u'title', 8), 'none_agg']}}
+    # model.gen_sql(sql,table_dict["college_2"])
+    f.close()
 
 def load_para_wemb(file_name):
     f = io.open(file_name, 'r', encoding='utf-8')

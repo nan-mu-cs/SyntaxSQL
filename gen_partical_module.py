@@ -221,13 +221,13 @@ class DesAscPredictor:
     def generate_output(self):
         for key in self.sql:
             if key == "orderBy" and self.sql[key]:
-                self.history.append(key)
+                # self.history.append(key)
                 try:
                     col = self.sql[key][1][0][1][1]
                 except:
                     print("question:{} sql:{}".format(self.question, self.sql))
-                self.history.append(index_to_column_name(col, self.table))
-                self.history.append(self.sql[key][1][0][1][0])
+                # self.history.append(index_to_column_name(col, self.table))
+                # self.history.append(self.sql[key][1][0][1][0])
                 if self.sql[key][0] == "asc" and self.sql["limit"]:
                     label = 0
                 elif self.sql[key][0] == "asc" and not self.sql["limit"]:
@@ -236,7 +236,7 @@ class DesAscPredictor:
                     label = 2
                 else:
                     label = 3
-                return self.history, self.sql[key][0]
+                return self.history+[index_to_column_name(col, self.table),self.sql[key][1][0][1][0]], self.sql[key][0]
 
 
 class AndOrPredictor:
@@ -326,19 +326,19 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
             if "select" in label[1]:
                 stack.append(("select",node[1]))
         elif node[0] in ("select","having","orderBy"):
+            # if node[0] != "orderBy":
+            history.append(node[0])
             if node[0] == "orderBy":
                 orderby_ret = DesAscPredictor(question_tokens, node[1], table, history).generate_output()
                 if orderby_ret:
                     dataset['des_asc_dataset'].append({
                         "question_tokens": question_tokens,
                         "ts": table_schema,
-                        "history": history[:],
+                        "history": orderby_ret[0],
                         "gt_col":node[1]["orderBy"][1][0][1][1],
                         "label": ORDER_OPS[orderby_ret[1]]
                     })
-                    history.append(orderby_ret[1])
-                else:
-                    history.append(node[0])
+                    # history.append(orderby_ret[1])
             col_ret = ColPredictor(question_tokens, node[1], table, history,node[0]).generate_output()
             agg_col_dict = dict()
             op_col_dict = dict()
@@ -461,6 +461,7 @@ def parser_item_with_long_history(question_tokens, sql, table, history, dataset)
                 for key in op_col_dict:
                     stack.append(("col", "where", op_col_dict[key]))
         elif node[0] == "groupBy":
+            history.append(node[0])
             col_ret = ColPredictor(question_tokens, node[1], table, history, node[0]).generate_output()
             agg_col_dict = dict()
             for h, l, s in col_ret:
