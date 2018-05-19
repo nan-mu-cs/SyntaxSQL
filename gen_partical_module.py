@@ -236,7 +236,7 @@ class DesAscPredictor:
                     label = 2
                 else:
                     label = 3
-                return self.history+[index_to_column_name(col, self.table),self.sql[key][1][0][1][0]], self.sql[key][0]
+                return self.history+[index_to_column_name(col, self.table),self.sql[key][1][0][1][0]], label
 
 
 class AndOrPredictor:
