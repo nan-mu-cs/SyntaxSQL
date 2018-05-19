@@ -447,7 +447,7 @@ def load_test_dataset():
 def test_acc(model, batch_size, data):
     table_dict = get_table_dict("./data/tables.json")
     f = open("predict.txt","w")
-    for item in data[:20]:
+    for item in data[:]:
         sql = model.forward([item["question_toks"]]*batch_size,[],table_dict[item["db_id"]])
         print(sql)
         sql = model.gen_sql(sql,table_dict[item["db_id"]])

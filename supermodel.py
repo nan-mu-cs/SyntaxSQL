@@ -397,7 +397,7 @@ class SuperModel(nn.Module):
     def gen_orderby(self,sql,table,table_alias_dict):
         ret = []
         limit = ""
-        if sql[-1]:
+        if sql[-1] == True:
             limit = "limit 1"
         for i in range(0,len(sql)-2,2):
             if sql[i+1] == "none_agg":
