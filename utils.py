@@ -209,7 +209,7 @@ def to_batch_query(sql_data, idxes, st, ed):
 #
 #     return cum_loss / len(sql_data)
 
-def epoch_train(model, optimizer, batch_size, component,embed_layer,data):
+def epoch_train(model, optimizer, batch_size, component,embed_layer,data, hier_col):
     model.train()
     perm=np.random.permutation(len(data))
     cum_loss = 0.0
@@ -241,9 +241,13 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data):
             #col word embedding
             # [[0,1,3]]
             tables = to_batch_tables(data,perm,st,ed)
-            col_emb_var,col_lens = embed_layer.gen_table_embedding(tables)
-            # print("col_emb_var {}".format(col_emb_var.size()))
-            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens)
+            if hier_col:
+                t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = embed_layer.gen_hier_table_embedding(tables)
+                score = model.forward_hier(q_emb_var, q_len, hs_emb_var, hs_len, t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix)
+            else:
+                col_emb_var,col_lens = embed_layer.gen_table_embedding(tables)
+                # print("col_emb_var {}".format(col_emb_var.size()))
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens)
         elif component == "op":
             #B*index
             tables = to_batch_tables(data, perm, st, ed)
@@ -322,7 +326,7 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data):
     return cum_loss / len(data)
 
 
-def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False, train_flag = False):
+def epoch_acc(model, batch_size, component, embed_layer,data, hier_col, error_print=False, train_flag = False):
     model.eval()
     perm = list(range(len(data)))
     st = 0
@@ -357,9 +361,13 @@ def epoch_acc(model, batch_size, component, embed_layer,data, error_print=False,
             #col word embedding
             # [[0,1,3]]
             tables = to_batch_tables(data,perm,st,ed)
-            col_emb_var,col_lens = embed_layer.gen_table_embedding(tables)
+            if hier_col:
+                t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = embed_layer.gen_hier_table_embedding(tables)
+                score = model.forward_hier(q_emb_var, q_len, hs_emb_var, hs_len, t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix)
+            else:
+                col_emb_var,col_lens = embed_layer.gen_table_embedding(tables)
             # print("col_emb_var {}".format(col_emb_var.size()))
-            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens)
         elif component == "op":
             #B*index
             tables = to_batch_tables(data, perm, st, ed)

@@ -130,6 +130,79 @@ class WordEmbedding(nn.Module):
 
         return val_inp_var, val_len
 
+    def gen_hier_table_embedding(self,tables):
+        B = len(tables)
+        t_embs_batch = []
+        col_embs_batch = []
+        col_t_idxs_batch = []
+        for i,table in enumerate(tables):
+            n_tables = len(table[0])
+            t_embs = [np.zeros(self.N_word, dtype=np.float32)] # list of table name emb; [n_tables +1, ]
+            col_embs = [] # [total_n_cols, ]
+            col_t_idxs = [] # [total_n_cols, ]
+            for tname in table[0]:
+                tname = tname.split()
+                tname_emb = []
+                for w in tname:
+                    tname_emb.append(self.word_emb.get(w, np.zeros(self.N_word, dtype=np.float32)))
+                if len(tname_emb) == 0:
+                    raise Exception("col name should not be empty!")
+                t_embs.append(sum(tname_emb)/len(tname_emb)) # take average emb
+
+            for idx,col in table[1]: # idx: which table
+                table_idx = idx + 1
+                col = col.split()
+                col_emb = []
+                for w in col:
+                    col_emb.append(self.word_emb.get(w, np.zeros(self.N_word, dtype=np.float32)))
+                if len(col_emb) == 0:
+                    raise Exception("col name should not be empty!")
+                if idx == -1:
+                    emb = np.concatenate((sum(col_emb)/len(col_emb), np.zeros(self.N_word, dtype=np.float32)), axis=0)
+                else:
+                    emb = np.concatenate((sum(col_emb) / len(col_emb), self.word_emb.get(table[2][idx], np.zeros(self.N_word, dtype=np.float32))), axis=0)
+                col_embs.append(emb)
+                col_t_idxs.append(table_idx)
+
+            t_embs_batch.append(t_embs)
+            col_embs_batch.append(col_embs)
+            col_t_idxs_batch.append(col_t_idxs)
+
+        # len related
+        t_len_arr = np.asarray([len(t_embs) for t_embs in t_embs_batch]) # [B, ]
+        col_len_arr = np.asarray([len(col_embs) for col_embs in col_embs_batch])
+        max_t_len = max(t_len_arr)
+        max_col_len = max(col_len_arr)
+
+        col_t_map_matrix = np.zeros((B, max_col_len, max_t_len), dtype=np.float32)
+        for i in range(B):
+            col_t_idxs = col_t_idxs_batch[i]
+            for c in range(len(col_t_idxs)): # total_n_cols
+                col_t_map_matrix[i, c, col_t_idxs[c]] = 1.
+
+        # emb related
+        t_embs_batch_array = np.zeros((B, max_t_len, self.N_word), dtype=np.float32)
+        for i in range(B):
+            for t in range(len(t_embs_batch[i])): # for each table
+                t_embs_batch_array[i, t, :] = t_embs_batch[i][t]
+        col_embss_batch_array = np.zeros((B, max_col_len, self.N_word*2), dtype=np.float32)
+        for i in range(B):
+            for c in range(len(col_embs_batch[i])): # for each table
+                col_embss_batch_array[i, c, :] = col_embs_batch[i][c]
+
+        val_inp_t = torch.from_numpy(t_embs_batch_array)
+        val_inp_col = torch.from_numpy(col_embss_batch_array)
+        col_t_map_matrix = torch.from_numpy(col_t_map_matrix)
+        if self.gpu:
+            val_inp_col = val_inp_col.cuda()
+            val_inp_t = val_inp_t.cuda()
+            col_t_map_matrix = col_t_map_matrix.cuda()
+        val_inp_col_var = Variable(val_inp_col)
+        val_inp_t_var = Variable(val_inp_t)
+        col_t_map_matrix = Variable(col_t_map_matrix, requires_grad=False)
+
+        return val_inp_t_var, val_inp_col_var, t_len_arr, col_len_arr, col_t_map_matrix
+        
 
     def gen_word_list_embedding(self,words,B):
         val_emb_array = np.zeros((B,len(words), self.N_word), dtype=np.float32)
