@@ -243,7 +243,7 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data, hier_c
             tables = to_batch_tables(data,perm,st,ed)
             if hier_col:
                 t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = embed_layer.gen_hier_table_embedding(tables)
-                score = model.forward_hier(q_emb_var, q_len, hs_emb_var, hs_len, t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, t_emb_var, t_len, col_t_map_matrix)
             else:
                 col_emb_var,col_lens = embed_layer.gen_table_embedding(tables)
                 # print("col_emb_var {}".format(col_emb_var.size()))
@@ -251,7 +251,6 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data, hier_c
         elif component == "op":
             #B*index
             tables = to_batch_tables(data, perm, st, ed)
-            col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
             gt_col = np.zeros(q_len.shape,dtype=np.int64)
             # print(ed)
             index = 0
@@ -259,12 +258,16 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data, hier_c
                 # print(i)
                 gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
+            if hier_col:
+                t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = embed_layer.gen_hier_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, gt_col, t_emb_var, t_len, col_t_map_matrix)
+            else:
+                col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
 
-            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
         elif component == "agg":
             # [[0,1,3]]
             tables = to_batch_tables(data, perm, st, ed)
-            col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
             gt_col = np.zeros(q_len.shape, dtype=np.int64)
             # print(ed)
             index = 0
@@ -272,11 +275,16 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data, hier_c
                 # print(i)
                 gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
-            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+            if hier_col:
+                t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = embed_layer.gen_hier_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, gt_col, t_emb_var, t_len, col_t_map_matrix)
+            else:
+                col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+
         elif component == "root_tem":
             #B*0/1
             tables = to_batch_tables(data, perm, st, ed)
-            col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
             gt_col = np.zeros(q_len.shape, dtype=np.int64)
             # print(ed)
             index = 0
@@ -284,11 +292,16 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data, hier_c
                 # print(data[perm[i]]["history"])
                 gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
-            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+            if hier_col:
+                t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = embed_layer.gen_hier_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, gt_col, t_emb_var, t_len, col_t_map_matrix)
+            else:
+                col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+
         elif component == "des_asc":
             # B*0/1
             tables = to_batch_tables(data, perm, st, ed)
-            col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
             gt_col = np.zeros(q_len.shape, dtype=np.int64)
             # print(ed)
             index = 0
@@ -296,10 +309,15 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data, hier_c
                 # print(i)
                 gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
-            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+            if hier_col:
+                t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = embed_layer.gen_hier_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, gt_col, t_emb_var, t_len, col_t_map_matrix)
+            else:
+                col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+
         elif component == 'having':
             tables = to_batch_tables(data, perm, st, ed)
-            col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
             gt_col = np.zeros(q_len.shape, dtype=np.int64)
             # print(ed)
             index = 0
@@ -307,8 +325,13 @@ def epoch_train(model, optimizer, batch_size, component,embed_layer,data, hier_c
                 # print(i)
                 gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
-            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens,
-                                  gt_col=gt_col)
+            if hier_col:
+                t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = embed_layer.gen_hier_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, gt_col, t_emb_var, t_len, col_t_map_matrix)
+            else:
+                col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+
         elif component == "andor":
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len)
         # score = model.forward(q_seq, col_seq, col_num, pred_entry,
@@ -363,7 +386,7 @@ def epoch_acc(model, batch_size, component, embed_layer,data, hier_col, error_pr
             tables = to_batch_tables(data,perm,st,ed)
             if hier_col:
                 t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = embed_layer.gen_hier_table_embedding(tables)
-                score = model.forward_hier(q_emb_var, q_len, hs_emb_var, hs_len, t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, t_emb_var, t_len, col_t_map_matrix)
             else:
                 col_emb_var,col_lens = embed_layer.gen_table_embedding(tables)
             # print("col_emb_var {}".format(col_emb_var.size()))
@@ -371,7 +394,6 @@ def epoch_acc(model, batch_size, component, embed_layer,data, hier_col, error_pr
         elif component == "op":
             #B*index
             tables = to_batch_tables(data, perm, st, ed)
-            col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
             gt_col = np.zeros(q_len.shape,dtype=np.int64)
             # print(ed)
             index = 0
@@ -379,12 +401,16 @@ def epoch_acc(model, batch_size, component, embed_layer,data, hier_col, error_pr
                 # print(i)
                 gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
+            if hier_col:
+                t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = embed_layer.gen_hier_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, gt_col, t_emb_var, t_len, col_t_map_matrix)
+            else:
+                col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
 
-            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
         elif component == "agg":
             # [[0,1,3]]
             tables = to_batch_tables(data, perm, st, ed)
-            col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
             gt_col = np.zeros(q_len.shape, dtype=np.int64)
             # print(ed)
             index = 0
@@ -392,11 +418,17 @@ def epoch_acc(model, batch_size, component, embed_layer,data, hier_col, error_pr
                 # print(i)
                 gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
-            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+
+            if hier_col:
+                t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = embed_layer.gen_hier_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, gt_col, t_emb_var, t_len, col_t_map_matrix)
+            else:
+                col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+
         elif component == "root_tem":
             #B*0/1
             tables = to_batch_tables(data, perm, st, ed)
-            col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
             gt_col = np.zeros(q_len.shape, dtype=np.int64)
             # print(ed)
             index = 0
@@ -404,11 +436,16 @@ def epoch_acc(model, batch_size, component, embed_layer,data, hier_col, error_pr
                 # print(data[perm[i]]["history"])
                 gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
-            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+            if hier_col:
+                t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = embed_layer.gen_hier_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, gt_col, t_emb_var, t_len, col_t_map_matrix)
+            else:
+                col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+
         elif component == "des_asc":
             # B*0/1
             tables = to_batch_tables(data, perm, st, ed)
-            col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
             gt_col = np.zeros(q_len.shape, dtype=np.int64)
             # print(ed)
             index = 0
@@ -416,10 +453,15 @@ def epoch_acc(model, batch_size, component, embed_layer,data, hier_col, error_pr
                 # print(i)
                 gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
-            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+            if hier_col:
+                t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = embed_layer.gen_hier_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, gt_col, t_emb_var, t_len, col_t_map_matrix)
+            else:
+                col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+
         elif component == 'having':
             tables = to_batch_tables(data, perm, st, ed)
-            col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
             gt_col = np.zeros(q_len.shape, dtype=np.int64)
             # print(ed)
             index = 0
@@ -427,8 +469,13 @@ def epoch_acc(model, batch_size, component, embed_layer,data, hier_col, error_pr
                 # print(i)
                 gt_col[index] = data[perm[i]]["gt_col"]
                 index += 1
-            score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens,
-                                  gt_col=gt_col)
+            if hier_col:
+                t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = embed_layer.gen_hier_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, gt_col, t_emb_var, t_len, col_t_map_matrix)
+            else:
+                col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
+                score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
+                
         elif component == "andor":
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len)
         # print("label {}".format(label))

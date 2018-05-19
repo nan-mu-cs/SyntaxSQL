@@ -77,15 +77,15 @@ if __name__ == '__main__':
     elif args.train_component == "col":
         model = ColPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU,hier_col=args.hier_col)
     elif args.train_component == "op":
-        model = OpPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
+        model = OpPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU,hier_col=args.hier_col)
     elif args.train_component == "agg":
-        model = AggPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
+        model = AggPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU,hier_col=args.hier_col)
     elif args.train_component == "root_tem":
-        model = RootTeminalPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
+        model = RootTeminalPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU,hier_col=args.hier_col)
     elif args.train_component == "des_asc":
-        model = DesAscLimitPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
+        model = DesAscLimitPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU,hier_col=args.hier_col)
     elif args.train_component == "having":
-        model = HavingPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
+        model = HavingPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU,hier_col=args.hier_col)
     elif args.train_component == "andor":
         model = AndOrPredictor(N_word=N_word, N_h=N_h, N_depth=N_depth, gpu=GPU)
     # model = SQLNet(word_emb, N_word=N_word, gpu=GPU, trainable_emb=args.train_emb)

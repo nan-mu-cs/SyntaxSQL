@@ -25,6 +25,7 @@ class ColPredictor(nn.Module):
                 num_layers=N_depth, batch_first=True,
                 dropout=0.3, bidirectional=True)
         if hier_col:
+            print "Using hier_col for col module"
             self.t_lstm = nn.LSTM(input_size=N_word, hidden_size=N_h/2,
                 num_layers=N_depth, batch_first=True,
                 dropout=0.3, bidirectional=True)
@@ -52,72 +53,7 @@ class ColPredictor(nn.Module):
         if gpu:
             self.cuda()
 
-    def forward(self, q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len):
-        max_q_len = max(q_len)
-        max_hs_len = max(hs_len)
-        max_col_len = max(col_len)
-        B = len(q_len)
-
-        q_enc, _ = run_lstm(self.q_lstm, q_emb_var, q_len)
-        hs_enc, _ = run_lstm(self.hs_lstm, hs_emb_var, hs_len)
-        col_enc, _ = run_lstm(self.col_lstm, col_emb_var, col_len)
-
-        # Predict column number: 1-3
-        # att_val_qc_num: (B, max_col_len, max_q_len)
-        att_val_qc_num = torch.bmm(col_enc, self.q_num_att(q_enc).transpose(1, 2))
-        for idx, num in enumerate(col_len):
-            if num < max_col_len:
-                att_val_qc_num[idx, num:, :] = -100
-        for idx, num in enumerate(q_len):
-            if num < max_q_len:
-                att_val_qc_num[idx, :, num:] = -100
-        att_prob_qc_num = self.softmax(att_val_qc_num.view((-1, max_q_len))).view(B, -1, max_q_len)
-        # q_weighted_num: (B, hid_dim)
-        q_weighted_num = (q_enc.unsqueeze(1) * att_prob_qc_num.unsqueeze(3)).sum(2).sum(1)
-
-        # Same as the above, compute SQL history embedding weighted by column attentions
-        # att_val_hc_num: (B, max_col_len, max_hs_len)
-        att_val_hc_num = torch.bmm(col_enc, self.hs_num_att(hs_enc).transpose(1, 2))
-        for idx, num in enumerate(hs_len):
-            if num < max_hs_len:
-                att_val_hc_num[idx, :, num:] = -100
-        for idx, num in enumerate(col_len):
-            if num < max_col_len:
-                att_val_hc_num[idx, num:, :] = -100
-        att_prob_hc_num = self.softmax(att_val_hc_num.view((-1, max_hs_len))).view(B, -1, max_hs_len)
-        hs_weighted_num = (hs_enc.unsqueeze(1) * att_prob_hc_num.unsqueeze(3)).sum(2).sum(1)
-        # self.col_num_out: (B, 3)
-        col_num_score = self.col_num_out(self.col_num_out_q(q_weighted_num) + self.col_num_out_hs(hs_weighted_num))
-
-        # Predict columns.
-        att_val_qc = torch.bmm(col_enc, self.q_att(q_enc).transpose(1, 2))
-        for idx, num in enumerate(q_len):
-            if num < max_q_len:
-                att_val_qc[idx, :, num:] = -100
-        att_prob_qc = self.softmax(att_val_qc.view((-1, max_q_len))).view(B, -1, max_q_len)
-        # q_weighted: (B, max_col_len, hid_dim)
-        q_weighted = (q_enc.unsqueeze(1) * att_prob_qc.unsqueeze(3)).sum(2)
-
-        # Same as the above, compute SQL history embedding weighted by column attentions
-        att_val_hc = torch.bmm(col_enc, self.hs_att(hs_enc).transpose(1, 2))
-        for idx, num in enumerate(hs_len):
-            if num < max_hs_len:
-                att_val_hc[idx, :, num:] = -100
-        att_prob_hc = self.softmax(att_val_hc.view((-1, max_hs_len))).view(B, -1, max_hs_len)
-        hs_weighted = (hs_enc.unsqueeze(1) * att_prob_hc.unsqueeze(3)).sum(2)
-        # Compute prediction scores
-        # self.col_out.squeeze(): (B, max_col_len)
-        col_score = self.col_out(self.col_out_q(q_weighted) + self.col_out_hs(hs_weighted) + self.col_out_c(col_enc)).squeeze()
-
-        for idx, num in enumerate(col_len):
-            if num < max_col_len:
-                col_score[idx, num:] = -100
-
-        score = (col_num_score, col_score)
-
-        return score
-
-    def forward_hier(self, q_emb_var, q_len, hs_emb_var, hs_len, t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix):
+    def forward(self, q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, t_emb_var=None, t_len=None, col_t_map_matrix=None):
         # t_emb_var: [B, max_t_len, N_word]
         # t_len: [B, ]
         # col_emb_var: [B, max_col_len, N_word*2]
@@ -125,18 +61,20 @@ class ColPredictor(nn.Module):
         # col_t_map_matrix: [B, max_col_len, max_t_len]
         max_q_len = max(q_len)
         max_hs_len = max(hs_len)
-        max_t_len = max(t_len)
         max_col_len = max(col_len)
         B = len(q_len)
 
-        q_enc, _ = run_lstm(self.q_lstm, q_emb_var, q_len) # (B, max_q_len, dim)
+        q_enc, _ = run_lstm(self.q_lstm, q_emb_var, q_len)
         hs_enc, _ = run_lstm(self.hs_lstm, hs_emb_var, hs_len)
-        t_enc, _ = run_lstm(self.t_lstm, t_emb_var, t_len) # (B, max_t_len, N_word)
-
-        t_enc_for_col = torch.bmm(col_t_map_matrix, t_enc) # (B, max_col_len, N_word)
-        t_col_concat = self.t_col_concat_layer(
-              torch.cat((col_emb_var, t_enc_for_col), dim=2)) # (B, max_c_len, N_word*3)
-        col_enc, _ = run_lstm(self.col_lstm, t_col_concat, col_len)
+        if t_emb_var is None:
+            col_enc, _ = run_lstm(self.col_lstm, col_emb_var, col_len)
+        else: # hier_col
+            max_t_len = max(t_len)
+            t_enc, _ = run_lstm(self.t_lstm, t_emb_var, t_len) # (B, max_t_len, N_word)
+            t_enc_for_col = torch.bmm(col_t_map_matrix, t_enc) # (B, max_col_len, N_word)
+            t_col_concat = self.t_col_concat_layer(
+                  torch.cat((col_emb_var, t_enc_for_col), dim=2)) # (B, max_c_len, N_word*3)
+            col_enc, _ = run_lstm(self.col_lstm, t_col_concat, col_len)
 
         # Predict column number: 1-3
         # att_val_qc_num: (B, max_col_len, max_q_len)
@@ -192,7 +130,6 @@ class ColPredictor(nn.Module):
         score = (col_num_score, col_score)
 
         return score
-
 
     def loss(self, score, truth):
         #here suppose truth looks like [[[1, 4], 3], [], ...]

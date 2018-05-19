@@ -8,7 +8,7 @@ from net_utils import run_lstm, col_name_encode
 
 
 class HavingPredictor(nn.Module):
-    def __init__(self, N_word, N_h, N_depth, gpu):
+    def __init__(self, N_word, N_h, N_depth, gpu, hier_col):
         super(HavingPredictor, self).__init__()
         self.N_h = N_h
         self.gpu = gpu
@@ -24,6 +24,12 @@ class HavingPredictor(nn.Module):
         self.col_lstm = nn.LSTM(input_size=N_word*3, hidden_size=N_h/2,
                 num_layers=N_depth, batch_first=True,
                 dropout=0.3, bidirectional=True)
+        if hier_col:
+            print "Using hier_col for having module"
+            self.t_lstm = nn.LSTM(input_size=N_word, hidden_size=N_h/2,
+                num_layers=N_depth, batch_first=True,
+                dropout=0.3, bidirectional=True)
+            self.t_col_concat_layer = nn.Sequential(nn.Linear(N_word*3, N_word*3), nn.Tanh())
 
         self.q_att = nn.Linear(N_h, N_h)
         self.hs_att = nn.Linear(N_h, N_h)
@@ -41,7 +47,7 @@ class HavingPredictor(nn.Module):
         if gpu:
             self.cuda()
 
-    def forward(self, q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, gt_col):
+    def forward(self, q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, gt_col, t_emb_var=None, t_len=None, col_t_map_matrix=None):
         max_q_len = max(q_len)
         max_hs_len = max(hs_len)
         max_col_len = max(col_len)
@@ -49,7 +55,16 @@ class HavingPredictor(nn.Module):
 
         q_enc, _ = run_lstm(self.q_lstm, q_emb_var, q_len)
         hs_enc, _ = run_lstm(self.hs_lstm, hs_emb_var, hs_len)
-        col_enc, _ = run_lstm(self.col_lstm, col_emb_var, col_len)
+        if t_emb_var is None:
+            col_enc, _ = run_lstm(self.col_lstm, col_emb_var, col_len)
+        else: # hier_col
+            max_t_len = max(t_len)
+            t_enc, _ = run_lstm(self.t_lstm, t_emb_var, t_len) # (B, max_t_len, N_word)
+            t_enc_for_col = torch.bmm(col_t_map_matrix, t_enc) # (B, max_col_len, N_word)
+            t_col_concat = self.t_col_concat_layer(
+                  torch.cat((col_emb_var, t_enc_for_col), dim=2)) # (B, max_c_len, N_word*3)
+            col_enc, _ = run_lstm(self.col_lstm, t_col_concat, col_len)
+
         # get target/predicted column's embedding
         # col_emb: (B, hid_dim)
         col_emb = []
