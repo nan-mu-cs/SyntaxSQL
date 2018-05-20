@@ -53,12 +53,13 @@ class Stack:
 
 
 class SuperModel(nn.Module):
-    def __init__(self, word_emb, N_word, N_h=300, N_depth=2, gpu=True, trainable_emb=False):
+    def __init__(self, word_emb, N_word, N_h=300, N_depth=2, gpu=True, trainable_emb=False, hier_col=False):
         super(SuperModel, self).__init__()
         self.gpu = gpu
         self.N_h = N_h
         self.N_depth = N_depth
         self.trainable_emb = trainable_emb
+        self.hier_col = hier_col
 
         self.SQL_TOK = ['<UNK>', '<END>', 'WHERE', 'AND', 'EQL', 'GT', 'LT', '<BEG>']
 
@@ -196,7 +197,11 @@ class SuperModel(nn.Module):
             #     score = self.having.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,)
             elif isinstance(vet,tuple) and vet[0] == "col":
                 # print("q_emb_var:{} hs_emb_var:{} col_emb_var:{}".format(q_emb_var.size(), hs_emb_var.size(),col_emb_var.size()))
-                score = self.col.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len)
+                if self.hier_col:
+                    t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = self.embed_layer.gen_hier_table_embedding(tables)
+                    score = self.col.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, t_emb_var, t_len, col_t_map_matrix)
+                else:
+                    score = self.col.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len)
                 col_num_score, col_score = [x.data.cpu().numpy() for x in score]
                 col_num = np.argmax(col_num_score[0]) + 1  # double check
                 cols = np.argsort(-col_score[0])[:col_num]
@@ -218,7 +223,11 @@ class SuperModel(nn.Module):
                     andor_cond = COND_OPS[label]
                     current_sql[kw].append(andor_cond)
                 if vet[1] == "groupBy" and col_num > 0:
-                    score = self.having.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, cols[0],dtype=np.int64))
+                    if self.hier_col:
+                        t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = self.embed_layer.gen_hier_table_embedding(tables)
+                        score = self.having.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, cols[0],dtype=np.int64), t_emb_var, t_len, col_t_map_matrix)
+                    else:
+                        score = self.having.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, cols[0],dtype=np.int64))
                     label = np.argmax(score[0].data.cpu().numpy())
                     if label == 1:
                         has_having = (label == 1)
@@ -238,7 +247,11 @@ class SuperModel(nn.Module):
                         print("sql_stack:{}".format(sql_stack))
                         exit(1)
                 hs_emb_var, hs_len = self.embed_layer.gen_x_history_batch(history)
-                score = self.agg.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,np.full(B, vet[2],dtype=np.int64))
+                if self.hier_col:
+                    t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = self.embed_layer.gen_hier_table_embedding(tables)
+                    score = self.agg.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[2],dtype=np.int64), t_emb_var, t_len, col_t_map_matrix)
+                else:
+                    score = self.agg.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[2],dtype=np.int64))
                 agg_num_score, agg_score = [x.data.cpu().numpy() for x in score]
                 agg_num = np.argmax(agg_num_score[0])  # double check
                 agg_idxs = np.argsort(-agg_score[0])[:agg_num]
@@ -274,7 +287,12 @@ class SuperModel(nn.Module):
                     # current_sql[kw].append(index_to_column_name(vet[2], tables))
                     history[0].append(index_to_column_name(vet[2], tables))
                     hs_emb_var, hs_len = self.embed_layer.gen_x_history_batch(history)
-                score = self.op.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,np.full(B, vet[2],dtype=np.int64))
+                if self.hier_col:
+                    t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = self.embed_layer.gen_hier_table_embedding(tables)
+                    score = self.op.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[2],dtype=np.int64), t_emb_var, t_len, col_t_map_matrix)
+                else:
+                    score = self.op.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[2],dtype=np.int64))
+
                 op_num_score, op_score = [x.data.cpu().numpy() for x in score]
                 op_num = np.argmax(op_num_score[0]) + 1  # num_score 0 maps to 1 in truth, must have at least one op
                 ops = np.argsort(-op_score[0])[:op_num]
@@ -297,7 +315,12 @@ class SuperModel(nn.Module):
                         stack.push(("root_teminal", vet[2],op))
                 # stack.push(("root_teminal",vet[2]))
             elif isinstance(vet,tuple) and vet[0] == "root_teminal":
-                score = self.root_teminal.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,np.full(B, vet[1],dtype=np.int64))
+                if self.hier_col:
+                    t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = self.embed_layer.gen_hier_table_embedding(tables)
+                    score = self.root_teminal.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[1],dtype=np.int64), t_emb_var, t_len, col_t_map_matrix)
+                else:
+                    score = self.root_teminal.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[1],dtype=np.int64))
+
                 label = np.argmax(score[0].data.cpu().numpy())
                 label = ROOT_TERM_OPS[label]
                 if len(vet) == 4:
@@ -324,7 +347,11 @@ class SuperModel(nn.Module):
                 else:
                     current_sql[kw].append("terminal")
             elif isinstance(vet,tuple) and vet[0] == "des_asc":
-                score = self.des_asc.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,np.full(B, vet[1],dtype=np.int64))
+                if self.hier_col:
+                    t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = self.embed_layer.gen_hier_table_embedding(tables)
+                    score = self.des_asc.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[1],dtype=np.int64), t_emb_var, t_len, col_t_map_matrix)
+                else:
+                    score = self.des_asc.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[1],dtype=np.int64))
                 label = np.argmax(score[0].data.cpu().numpy())
                 dec_asc,has_limit = DEC_ASC_OPS[label]
                 history[0].append(dec_asc)

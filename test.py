@@ -10,6 +10,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--train_emb', action='store_true',
             help='Train word embedding.')
+    parser.add_argument('--hier_col', action='store_true',
+            help='Use hierarchical table/column embedding.')
     parser.add_argument('--toy', action='store_true',
                         help='If set, use small data; used for fast debugging.')
 
@@ -40,7 +42,7 @@ if __name__ == '__main__':
     # dev_data = load_train_dev_dataset(args.train_component, "dev", args.history)
     #word_emb = load_concat_wemb('glove/glove.42B.300d.txt', "/data/projects/paraphrase/generation/para-nmt-50m/data/paragram_sl999_czeng.txt")
 
-    model = SuperModel(word_emb, N_word=N_word, gpu=GPU, trainable_emb = args.train_emb)
+    model = SuperModel(word_emb, N_word=N_word, gpu=GPU, trainable_emb = args.train_emb, hier_col=args.hier_col)
 
     # agg_m, sel_m, cond_m = best_model_name(args)
     # torch.save(model.state_dict(), "saved_models/{}_models.dump".format(args.train_component))

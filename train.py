@@ -31,6 +31,8 @@ if __name__ == '__main__':
             help='0: original dataset, 1: re-split dataset, 2: new complex dataset')
     parser.add_argument('--train_emb', action='store_true',
             help='Train word embedding.')
+    parser.add_argument('--hier_col', action='store_true',
+            help='Use hierarchical table/column embedding.')
     parser.add_argument('--train_component',type=str,default='',
                         help='set train components,available:[multi_sql,keyword,col,op,agg,root_tem,des_asc,having,andor]')
     parser.add_argument('--epoch',type=int,default=500,
@@ -73,17 +75,17 @@ if __name__ == '__main__':
     elif args.train_component == "keyword":
         model = KeyWordPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
     elif args.train_component == "col":
-        model = ColPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
+        model = ColPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU,hier_col=args.hier_col)
     elif args.train_component == "op":
-        model = OpPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
+        model = OpPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU,hier_col=args.hier_col)
     elif args.train_component == "agg":
-        model = AggPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
+        model = AggPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU,hier_col=args.hier_col)
     elif args.train_component == "root_tem":
-        model = RootTeminalPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
+        model = RootTeminalPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU,hier_col=args.hier_col)
     elif args.train_component == "des_asc":
-        model = DesAscLimitPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
+        model = DesAscLimitPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU,hier_col=args.hier_col)
     elif args.train_component == "having":
-        model = HavingPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU)
+        model = HavingPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=GPU,hier_col=args.hier_col)
     elif args.train_component == "andor":
         model = AndOrPredictor(N_word=N_word, N_h=N_h, N_depth=N_depth, gpu=GPU)
     # model = SQLNet(word_emb, N_word=N_word, gpu=GPU, trainable_emb=args.train_emb)
@@ -118,8 +120,8 @@ if __name__ == '__main__':
     for i in range(args.epoch):
         print('Epoch %d @ %s'%(i+1, datetime.datetime.now()))
         print(' Loss = %s'%epoch_train(
-                model, optimizer, BATCH_SIZE,args.train_component,embed_layer,train_data))
-        acc = epoch_acc(model, BATCH_SIZE, args.train_component,embed_layer,dev_data)
+                model, optimizer, BATCH_SIZE,args.train_component,embed_layer,train_data,hier_col=args.hier_col))
+        acc = epoch_acc(model, BATCH_SIZE, args.train_component,embed_layer,dev_data,hier_col=args.hier_col)
         if acc > best_acc:
             best_acc = acc
             print("Save model...")
@@ -133,4 +135,3 @@ if __name__ == '__main__':
         # print '\nDev sel acc: %s, sel # acc: %s' % (val_bkd_acc[1], val_bkd_acc[0])
         #print ' Breakdown results: agg #: %s, agg: %s,  sel: %s, cond: %s, sel #: %s, cond #: %s, cond col: %s, cond op: %s, cond val: %s, group #: %s, group: %s, order #: %s, order: %s, order agg: %s, order par: %s'\
         #    % (val_bkd_acc[0], val_bkd_acc[1], val_bkd_acc[2], val_bkd_acc[3], val_bkd_acc[4], val_bkd_acc[5], val_bkd_acc[6], val_bkd_acc[7], val_bkd_acc[8], val_bkd_acc[9], val_bkd_acc[10], val_bkd_acc[11], val_bkd_acc[12], val_bkd_acc[13], val_bkd_acc[14])
-
