@@ -534,7 +534,7 @@ def parser_item(question_tokens, sql, table, history, dataset):
             "question_tokens": question_tokens,
             "ts": table_schema,
             "history": orderby_ret[0][:],
-            "label": ORDER_OPS[orderby_ret[1]]
+            "label": orderby_ret[1]
         })
     col_ret = ColPredictor(question_tokens, sql, table, history).generate_output()
     agg_candidates = []
