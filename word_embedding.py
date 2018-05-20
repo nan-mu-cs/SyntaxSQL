@@ -156,7 +156,8 @@ class WordEmbedding(nn.Module):
                 for w in col:
                     col_emb.append(self.word_emb.get(w, np.zeros(self.N_word, dtype=np.float32)))
                 if len(col_emb) == 0:
-                    raise Exception("col name should not be empty!")
+                    col_emb.append(np.zeros(self.N_word, dtype=np.float32))
+                    #raise Exception("col name should not be empty!")
                 if idx == -1:
                     emb = np.concatenate((sum(col_emb)/len(col_emb), np.zeros(self.N_word, dtype=np.float32)), axis=0)
                 else:
