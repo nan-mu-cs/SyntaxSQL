@@ -135,6 +135,7 @@ class OpPredictor(nn.Module):
         loss = 0
         B = len(truth)
         op_num_score, op_score = score
+        truth = [t if len(t) <= 2 else t[:2] for t in truth]
         # loss for the op number
         truth_num = [len(t)-1 for t in truth] #num_score 0 maps to 1 in truth
         data = torch.from_numpy(np.array(truth_num))
