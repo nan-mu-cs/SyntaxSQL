@@ -571,6 +571,7 @@ def parser_item(question_tokens, sql, table, history, dataset):
         if label == -1:
             continue
         key = "{}{}".format(h[-2], h[-1][2])
+        label = NEW_WHERE_OPS[label]
         if key in op_col_dict:
             op_col_dict[key][1].append(label)
         else:
