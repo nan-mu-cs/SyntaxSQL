@@ -96,7 +96,10 @@ class SuperModel(nn.Module):
             self.cuda()
         self.path_not_found = 0
 
-    def forward(self, q_seq, history, tables):
+    def forward(self,q_seq,history,tables):
+        return self.full_forward(q_seq,history,tables)
+
+    def full_forward(self, q_seq, history, tables):
         B = len(q_seq)
         # print("q_seq:{}".format(q_seq))
         # print("Batch size:{}".format(B))
@@ -364,6 +367,292 @@ class SuperModel(nn.Module):
         # print("{}".format(current_sql))
         return current_sql
 
+    def part_forward(self, q_seq, history, tables):
+        B = len(q_seq)
+        # print("q_seq:{}".format(q_seq))
+        # print("Batch size:{}".format(B))
+        q_emb_var, q_len = self.embed_layer.gen_x_q_batch(q_seq)
+        col_emb_var,col_len = self.embed_layer.gen_table_embedding([[tables["table_names"],tables["column_names"],tables["column_types"]]]*B)
+
+        mkw_emb_var = self.embed_layer.gen_word_list_embedding(["none","except","intersect","union"],(B))
+        mkw_len = np.full(q_len.shape, 4,dtype=np.int64)
+        kw_emb_var = self.embed_layer.gen_word_list_embedding(["where", "group by", "order by"], (B))
+        kw_len = np.full(q_len.shape, 3, dtype=np.int64)
+
+        stack = Stack()
+        stack.push(("root",None))
+        history = [["root"]]*B
+        andor_cond = ""
+        has_limit = False
+        # sql = {}
+        current_sql = {}
+        sql_stack = []
+        idx_stack = []
+        kw_stack = []
+        kw = ""
+        nested_label = ""
+        has_having = False
+        while not stack.isEmpty():
+            vet = stack.pop()
+            # print(vet)
+            # if len(history[0]) == 0:
+            #     history = [["root"]]*B
+            # print(history)
+            hs_emb_var, hs_len = self.embed_layer.gen_x_history_batch(history)
+            if len(idx_stack) > 0 and stack.size() < idx_stack[-1]:
+                # print("pop!!!!!!!!!!!!!!!!!!!!!!")
+                idx_stack.pop()
+                current_sql = sql_stack.pop()
+                kw = kw_stack.pop()
+                # current_sql = current_sql["sql"]
+            # history.append(vet)
+            # print("hs_emb:{} hs_len:{}".format(hs_emb_var.size(),hs_len.size()))
+            if isinstance(vet,tuple) and vet[0] == "root":
+                if history[0][-1] != "root":
+                    history[0].append("root")
+                    hs_emb_var, hs_len = self.embed_layer.gen_x_history_batch(history)
+                if vet[1] != "original":
+                    idx_stack.append(stack.size())
+                    sql_stack.append(current_sql)
+                    kw_stack.append(kw)
+                else:
+                    idx_stack.append(stack.size())
+                    sql_stack.append(sql_stack[-1])
+                    kw_stack.append(kw)
+                if "sql" in current_sql:
+                    current_sql["nested_sql"] = {}
+                    current_sql["nested_label"] = nested_label
+                    current_sql = current_sql["nested_sql"]
+                elif isinstance(vet[1],dict):
+                    vet[1]["sql"] = {}
+                    current_sql = vet[1]["sql"]
+                elif vet[1] != "original":
+                    current_sql["sql"] = {}
+                    current_sql = current_sql["sql"]
+                # print("q_emb_var:{} hs_emb_var:{} mkw_emb_var:{}".format(q_emb_var.size(),hs_emb_var.size(),mkw_emb_var.size()))
+                if vet[1] == "nested" or vet[1] == "original":
+                    stack.push("none")
+                    history[0].append("none")
+                else:
+                    score = self.multi_sql.forward(q_emb_var,q_len,hs_emb_var,hs_len,mkw_emb_var,mkw_len)
+                    label = np.argmax(score[0].data.cpu().numpy())
+                    label = SQL_OPS[label]
+                    history[0].append(label)
+                    stack.push(label)
+                if label != "none":
+                    nested_label = label
+
+            elif vet in ('intersect', 'except', 'union'):
+                stack.push(("root","nested"))
+                stack.push(("root","original"))
+                # history[0].append("root")
+            elif vet == "none":
+                score = self.key_word.forward(q_emb_var,q_len,hs_emb_var,hs_len,kw_emb_var,kw_len)
+                kw_num_score, kw_score = [x.data.cpu().numpy() for x in score]
+                # print("kw_num_score:{}".format(kw_num_score))
+                # print("kw_score:{}".format(kw_score))
+                num_kw = np.argmax(kw_num_score[0])
+                kw_score = list(np.argsort(-kw_score[0])[:num_kw])
+                kw_score.sort(reverse=True)
+                # print("num_kw:{}".format(num_kw))
+                for kw in kw_score:
+                    stack.push(KW_OPS[kw])
+                stack.push("select")
+            elif vet in ("select","orderBy","where","groupBy","having"):
+                kw = vet
+                current_sql[kw] = []
+                if len(history[0]) > 0 and history[0][-1] in ("select","orderBy","where","groupBy","having"):
+                    history[0].pop()
+                history[0].append(vet)
+                stack.push(("col",vet))
+                # score = self.andor.forward(q_emb_var,q_len,hs_emb_var,hs_len)
+                # label = score[0].data.cpu().numpy()
+                # andor_cond = COND_OPS[label]
+                # history.append("")
+            # elif vet == "groupBy":
+            #     score = self.having.forward(q_emb_var,q_len,hs_emb_var,hs_len,col_emb_var,col_len,)
+            elif isinstance(vet,tuple) and vet[0] == "col":
+                # print("q_emb_var:{} hs_emb_var:{} col_emb_var:{}".format(q_emb_var.size(), hs_emb_var.size(),col_emb_var.size()))
+                if self.hier_col:
+                    t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = self.embed_layer.gen_hier_table_embedding(tables)
+                    score = self.col.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, t_emb_var, t_len, col_t_map_matrix)
+                else:
+                    score = self.col.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len)
+                col_num_score, col_score = [x.data.cpu().numpy() for x in score]
+                col_num = np.argmax(col_num_score[0]) + 1  # double check
+                cols = np.argsort(-col_score[0])[:col_num]
+                # print(col_num)
+                # print("col_num_score:{}".format(col_num_score))
+                # print("col_score:{}".format(col_score))
+                for col in cols:
+                    if vet[1] == "where":
+                        stack.push(("op","where",col))
+                    elif vet[1] != "groupBy":
+                        stack.push(("agg",vet[1],col))
+                    elif vet[1] == "groupBy":
+                        history[0].append(index_to_column_name(col, tables))
+                        current_sql[kw].append(index_to_column_name(col, tables))
+                #predict and or or when there is multi col in where condition
+                if col_num > 1 and vet[1] == "where":
+                    score = self.andor.forward(q_emb_var,q_len,hs_emb_var,hs_len)
+                    label = np.argmax(score[0].data.cpu().numpy())
+                    andor_cond = COND_OPS[label]
+                    current_sql[kw].append(andor_cond)
+                if vet[1] == "groupBy" and col_num > 0:
+                    if self.hier_col:
+                        t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = self.embed_layer.gen_hier_table_embedding(tables)
+                        score = self.having.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, cols[0],dtype=np.int64), t_emb_var, t_len, col_t_map_matrix)
+                    else:
+                        score = self.having.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, cols[0],dtype=np.int64))
+                    label = np.argmax(score[0].data.cpu().numpy())
+                    if label == 1:
+                        has_having = (label == 1)
+                        # stack.insert(-col_num,"having")
+                        stack.push("having")
+                # history.append(index_to_column_name(cols[-1], tables[0]))
+            elif isinstance(vet,tuple) and vet[0] == "agg":
+                history[0].append(index_to_column_name(vet[2], tables))
+                if vet[1] != "having":
+                    try:
+                        current_sql[kw].append(index_to_column_name(vet[2], tables))
+                    except Exception as e:
+                        # print(e)
+                        traceback.print_exc()
+                        print("history:{},current_sql:{} stack:{}".format(history[0], current_sql,stack.items))
+                        print("idx_stack:{}".format(idx_stack))
+                        print("sql_stack:{}".format(sql_stack))
+                        exit(1)
+                hs_emb_var, hs_len = self.embed_layer.gen_x_history_batch(history)
+                if self.hier_col:
+                    t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = self.embed_layer.gen_hier_table_embedding(tables)
+                    score = self.agg.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[2],dtype=np.int64), t_emb_var, t_len, col_t_map_matrix)
+                else:
+                    score = self.agg.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[2],dtype=np.int64))
+                agg_num_score, agg_score = [x.data.cpu().numpy() for x in score]
+                agg_num = np.argmax(agg_num_score[0])  # double check
+                agg_idxs = np.argsort(-agg_score[0])[:agg_num]
+                # print("agg:{}".format([AGG_OPS[agg] for agg in agg_idxs]))
+                if len(agg_idxs) > 0:
+                    history[0].append(AGG_OPS[agg_idxs[0]])
+                    if vet[1] != "having":
+                        current_sql[kw].append(AGG_OPS[agg_idxs[0]])
+                    else:
+                        stack.push(("op","having",vet[2],AGG_OPS[agg_idxs[0]]))
+                for agg in agg_idxs[1:]:
+                    history[0].append(index_to_column_name(vet[2], tables))
+                    history[0].append(AGG_OPS[agg])
+                    if vet[1] != "having":
+                        current_sql[kw].append(index_to_column_name(vet[2], tables))
+                        current_sql[kw].append(AGG_OPS[agg])
+                    else:
+                        stack.push(("op", "having", vet[2], AGG_OPS[agg]))
+                if len(agg_idxs) == 0:
+                    if vet[1] != "having":
+                        current_sql[kw].append("none_agg")
+                    else:
+                        stack.push(("op", "having", vet[2], "none_agg"))
+                # current_sql[kw].append([AGG_OPS[agg] for agg in agg_idxs])
+                # if vet[1] == "having":
+                #     stack.push(("op","having",vet[2],agg_idxs))
+                if vet[1] == "orderBy":
+                    stack.push(("des_asc",vet[2],agg_idxs))
+                # if vet[1] == "groupBy" and has_having:
+                #     stack.push("having")
+                if vet[1] in ("select","groupBy"):
+                    # print(history)
+                    while history[0][-1] not in ("select","groupBy"):
+                        history[0].pop()
+                    # history[0].pop()
+            elif isinstance(vet,tuple) and vet[0] == "op":
+                if vet[1] == "where":
+                    # current_sql[kw].append(index_to_column_name(vet[2], tables))
+                    history[0].append(index_to_column_name(vet[2], tables))
+                    hs_emb_var, hs_len = self.embed_layer.gen_x_history_batch(history)
+                if self.hier_col:
+                    t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = self.embed_layer.gen_hier_table_embedding(tables)
+                    score = self.op.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[2],dtype=np.int64), t_emb_var, t_len, col_t_map_matrix)
+                else:
+                    score = self.op.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[2],dtype=np.int64))
+
+                op_num_score, op_score = [x.data.cpu().numpy() for x in score]
+                op_num = np.argmax(op_num_score[0]) + 1  # num_score 0 maps to 1 in truth, must have at least one op
+                ops = np.argsort(-op_score[0])[:op_num]
+                # current_sql[kw].append([NEW_WHERE_OPS[op] for op in ops])
+                if op_num > 0:
+                    history[0].append(NEW_WHERE_OPS[ops[0]])
+                    if vet[1] == "having":
+                        stack.push(("root_teminal", vet[2],vet[3],ops[0]))
+                    else:
+                        stack.push(("root_teminal", vet[2],ops[0]))
+                    # current_sql[kw].append(NEW_WHERE_OPS[ops[0]])
+                for op in ops[1:]:
+                    history[0].append(index_to_column_name(vet[2], tables))
+                    history[0].append(NEW_WHERE_OPS[op])
+                    # current_sql[kw].append(index_to_column_name(vet[2], tables))
+                    # current_sql[kw].append(NEW_WHERE_OPS[op])
+                    if vet[1] == "having":
+                        stack.push(("root_teminal", vet[2],vet[3],op))
+                    else:
+                        stack.push(("root_teminal", vet[2],op))
+                # stack.push(("root_teminal",vet[2]))
+            elif isinstance(vet,tuple) and vet[0] == "root_teminal":
+                if self.hier_col:
+                    t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = self.embed_layer.gen_hier_table_embedding(tables)
+                    score = self.root_teminal.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[1],dtype=np.int64), t_emb_var, t_len, col_t_map_matrix)
+                else:
+                    score = self.root_teminal.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[1],dtype=np.int64))
+
+                label = np.argmax(score[0].data.cpu().numpy())
+                label = ROOT_TERM_OPS[label]
+                if len(vet) == 4:
+                    current_sql[kw].append(index_to_column_name(vet[1], tables))
+                    current_sql[kw].append(vet[2])
+                    current_sql[kw].append(NEW_WHERE_OPS[vet[3]])
+                else:
+                    # print("kw:{}".format(kw))
+                    try:
+                        current_sql[kw].append(index_to_column_name(vet[1], tables))
+                    except Exception as e:
+                        # print(e)
+                        traceback.print_exc()
+                        print("history:{},current_sql:{} stack:{}".format(history[0], current_sql, stack.items))
+                        print("idx_stack:{}".format(idx_stack))
+                        print("sql_stack:{}".format(sql_stack))
+                        exit(1)
+                    current_sql[kw].append(NEW_WHERE_OPS[vet[2]])
+                if label == "root":
+                    history[0].append("root")
+                    current_sql[kw].append({})
+                    # current_sql = current_sql[kw][-1]
+                    stack.push(("root",current_sql[kw][-1]))
+                    # history = [["root"]]*B
+                else:
+                    current_sql[kw].append("terminal")
+                    # print(history)
+                    while history[0][-1] not in ("where", "having"):
+                        history[0].pop()
+                    # history[0].pop()
+            elif isinstance(vet,tuple) and vet[0] == "des_asc":
+                if self.hier_col:
+                    t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = self.embed_layer.gen_hier_table_embedding(tables)
+                    score = self.des_asc.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[1],dtype=np.int64), t_emb_var, t_len, col_t_map_matrix)
+                else:
+                    score = self.des_asc.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[1],dtype=np.int64))
+                label = np.argmax(score[0].data.cpu().numpy())
+                dec_asc,has_limit = DEC_ASC_OPS[label]
+                history[0].append(dec_asc)
+                current_sql[kw].append(dec_asc)
+                current_sql[kw].append(has_limit)
+                while history[0][-1] != "orderBy":
+                    history[0].pop()
+                # history[0].pop()
+        # print("{}".format(current_sql))
+        print("history:{}".format(history[0]))
+        if len(sql_stack) > 0:
+            current_sql = sql_stack[0]
+        # print("{}".format(current_sql))
+        return current_sql
+
 
     def gen_col(self,col,table,table_alias_dict):
         colname = table["column_names_original"][col[2]][1]
@@ -426,12 +715,12 @@ class SuperModel(nn.Module):
         limit = ""
         if sql[-1] == True:
             limit = "limit 1"
-        for i in range(0,len(sql)-2,2):
+        for i in range(0,len(sql),4):
             if sql[i+1] == "none_agg":
-                ret.append(self.gen_col(sql[i],table,table_alias_dict))
+                ret.append("{} {}".format(self.gen_col(sql[i],table,table_alias_dict),sql[i+2]))
             else:
-                ret.append("{}({})".format(sql[i+1], self.gen_col(sql[i], table, table_alias_dict)))
-        return "order by {} {} {}".format(",".join(ret),sql[-2],limit)
+                ret.append("{}({}) {}".format(sql[i+1], self.gen_col(sql[i], table, table_alias_dict),sql[i+2]))
+        return "order by {} {}".format(",".join(ret),limit)
 
     def gen_having(self,sql,table,table_alias_dict):
         ret = []
