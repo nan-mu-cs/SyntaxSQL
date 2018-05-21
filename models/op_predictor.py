@@ -135,6 +135,7 @@ class OpPredictor(nn.Module):
         loss = 0
         B = len(truth)
         op_num_score, op_score = score
+        truth = [t if len(t) <= 2 else t[:2] for t in truth]
         # loss for the op number
         truth_num = [len(t)-1 for t in truth] #num_score 0 maps to 1 in truth
         data = torch.from_numpy(np.array(truth_num))
@@ -148,12 +149,12 @@ class OpPredictor(nn.Module):
         data = torch.from_numpy(np.array(truth_prob))
         truth_var = Variable(data.cuda())
         #loss += self.mlsml(op_score, truth_var)
-        loss += self.bce_logit(op_score, truth_var)
-        #pred_prob = self.sigm(op_score)
-        #bce_loss = -torch.mean( 3*(truth_var * \
-        #        torch.log(pred_prob+1e-10)) + \
-        #        (1-truth_var) * torch.log(1-pred_prob+1e-10) )
-        #loss += bce_loss
+        #loss += self.bce_logit(op_score, truth_var)
+        pred_prob = self.sigm(op_score)
+        bce_loss = -torch.mean( 3*(truth_var * \
+                torch.log(pred_prob+1e-10)) + \
+                (1-truth_var) * torch.log(1-pred_prob+1e-10) )
+        loss += bce_loss
 
         return loss
 

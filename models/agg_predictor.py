@@ -136,12 +136,12 @@ class AggPredictor(nn.Module):
         data = torch.from_numpy(truth_prob)
         truth_var = Variable(data.cuda())
         #loss += self.mlsml(agg_score, truth_var)
-        loss += self.bce_logit(agg_score, truth_var) # double check no sigmoid
-        #pred_prob = self.sigm(agg_score)
-        #bce_loss = -torch.mean( 3*(truth_var * \
-        #        torch.log(pred_prob+1e-10)) + \
-        #        (1-truth_var) * torch.log(1-pred_prob+1e-10) )
-        #loss += bce_loss
+        #loss += self.bce_logit(agg_score, truth_var) # double check no sigmoid
+        pred_prob = self.sigm(agg_score)
+        bce_loss = -torch.mean( 3*(truth_var * \
+                torch.log(pred_prob+1e-10)) + \
+                (1-truth_var) * torch.log(1-pred_prob+1e-10) )
+        loss += bce_loss
 
         return loss
 
