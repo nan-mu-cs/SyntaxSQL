@@ -505,7 +505,10 @@ def test_acc(model, batch_size, data,output_path):
     for item in data[:]:
         sql = model.forward([item["question_toks"]]*batch_size,[],table_dict[item["db_id"]])
         print(sql)
-        sql = model.gen_sql(sql,table_dict[item["db_id"]])
+        try:
+            sql = model.gen_sql(sql,table_dict[item["db_id"]])
+        except:
+            sql = "select a from b"
         print(sql)
         print("")
         f.write("{}\n".format(sql))
