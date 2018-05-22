@@ -545,12 +545,14 @@ def evaluate(gold, predict):
         # print("p:{}".format(p_str))
         try:
             p_sql = get_sql(schema, p_str)
+            #print(p_str)
         except:
-            # traceback.print_exc()
+            traceback.print_exc()
             # p_sql = {}
             # print("p:{}".format(p_str))
             # print("gold: {}".format(g_str))
             # print("")
+
             p_sql = {
             "except": None,
             "from": {
@@ -574,7 +576,8 @@ def evaluate(gold, predict):
             "union": None,
             "where": []
             }
-            # print("eval_err_num:{}".format(eval_err_num))
+            eval_err_num += 1
+            print("eval_err_num:{}".format(eval_err_num))
 
         #scores[hardness]['count'] += 1
         #scores['all']['count'] += 1
@@ -650,7 +653,8 @@ def evaluate(gold, predict):
 
 if __name__ == "__main__":
     gold = "./data/data_radn_split/gold.sql"
-    pred = "/home/lily/ky275/ruimethod/data/data_radn_split_system2.txt"
+    pred = "/home/lily/ky275/ruimethod/data/predicted_test_data_radn_split.sql"
+    #pred = "/home/lily/ky275/nl2code/lang/sql/rand1_result.txt"
 
     evaluate(gold, pred)
 
