@@ -37,7 +37,7 @@ if __name__ == '__main__':
     learning_rate = 1e-4
 
     #TODO
-    data = load_test_dataset()
+    data = load_test_dataset(args.output_path)
     # dev_data = load_train_dev_dataset(args.train_component, "dev", args.history)
 
     word_emb = load_word_emb('glove/glove.%dB.%dd.txt'%(B_word,N_word), \
