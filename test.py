@@ -14,10 +14,10 @@ if __name__ == '__main__':
             help='Use hierarchical table/column embedding.')
     parser.add_argument('--toy', action='store_true',
                         help='If set, use small data; used for fast debugging.')
-    parser.add_argument('--models')
-    parser.add_argument('--test_data_path')
+    parser.add_argument('--models',type=str)
+    parser.add_argument('--test_data_path',type=str)
     parser.add_argument('--part',action='store_true')
-    parser.add_argument('--output_path')
+    parser.add_argument('--output_path',type=str)
     args = parser.parse_args()
 
     N_word=300
