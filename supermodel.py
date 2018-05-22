@@ -53,14 +53,14 @@ class Stack:
 
 
 class SuperModel(nn.Module):
-    def __init__(self, word_emb, N_word, N_h=300, N_depth=2, gpu=True, trainable_emb=False, hier_col=False):
+    def __init__(self, word_emb, N_word, N_h=300, N_depth=2, gpu=True, trainable_emb=False, hier_col=False, part=False):
         super(SuperModel, self).__init__()
         self.gpu = gpu
         self.N_h = N_h
         self.N_depth = N_depth
         self.trainable_emb = trainable_emb
         self.hier_col = hier_col
-
+        self.part = part
         self.SQL_TOK = ['<UNK>', '<END>', 'WHERE', 'AND', 'EQL', 'GT', 'LT', '<BEG>']
 
         # word embedding layer
@@ -97,7 +97,10 @@ class SuperModel(nn.Module):
         self.path_not_found = 0
 
     def forward(self,q_seq,history,tables):
-        return self.full_forward(q_seq,history,tables)
+        if self.part:
+            return self.part_forward(q_seq,history,tables)
+        else:
+            return self.full_forward(q_seq, history, tables)
 
     def full_forward(self, q_seq, history, tables):
         B = len(q_seq)
