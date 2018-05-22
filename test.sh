@@ -1,6 +1,17 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 ## --part for part of history
-python test.py --toy --models /data/projects/nl2sql/models/ours_no_hs/saved_models \
+export CUDA_VISIBLE_DEVICES=7
+
+python test.py --models /home/lily/rz268/nl2sql/datasets/generated_data/saved_models/ \
                --test_data_path /data/projects/nl2sql/hold_out/test.json \
-               --output_path ./ours_no_hs_result.txt
+               --output_path ./results/ours_fullhs_result.txt
+
+python test.py --models /home/lily/rz268/nl2sql/datasets/generated_data_part/saved_models/ \
+               --test_data_path /data/projects/nl2sql/hold_out/test.json \
+               --output_path ./results/ours_parths_result.txt \
+               --part
+
+python test.py --models /home/lily/rz268/nl2sql/datasets/generated_data_wikisql/saved_models/ \
+               --test_data_path /data/projects/nl2sql/hold_out/test.json \
+               --output_path ./results/ours_fullhs_wikisql_result.txt
