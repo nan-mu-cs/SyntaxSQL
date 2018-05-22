@@ -496,12 +496,12 @@ def epoch_acc(model, batch_size, component, embed_layer,data, hier_col, error_pr
         print("Dev {} acc total acc: {}".format(component,1 - total_error*1.0/len(data)))
         return 1 - total_error*1.0/len(data)
 
-def load_test_dataset():
-    return json.load(open("./data/dev.json"))
+def load_test_dataset(path):
+    return json.load(open(path))
 
-def test_acc(model, batch_size, data):
-    table_dict = get_table_dict("./data/tables.json")
-    f = open("predict.txt","w")
+def test_acc(model, batch_size, data,output_path):
+    table_dict = get_table_dict("/data/projects/nl2sql/datasets/data")
+    f = open(output_path,"w")
     for item in data[:]:
         sql = model.forward([item["question_toks"]]*batch_size,[],table_dict[item["db_id"]])
         print(sql)
