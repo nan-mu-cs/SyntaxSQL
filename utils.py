@@ -500,7 +500,7 @@ def load_test_dataset(path):
     return json.load(open(path))
 
 def test_acc(model, batch_size, data,output_path):
-    table_dict = get_table_dict("/data/projects/nl2sql/datasets/data")
+    table_dict = get_table_dict("/data/projects/nl2sql/datasets/data/tables.json")
     f = open(output_path,"w")
     for item in data[:]:
         sql = model.forward([item["question_toks"]]*batch_size,[],table_dict[item["db_id"]])
