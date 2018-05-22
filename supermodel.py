@@ -544,21 +544,25 @@ class SuperModel(nn.Module):
                 for agg in agg_idxs[1:]:
                     history[0].append(index_to_column_name(vet[2], tables))
                     history[0].append(AGG_OPS[agg])
-                    if vet[1] != "having":
+                    if vet[1] not in ("having" and "orderBy"):
                         current_sql[kw].append(index_to_column_name(vet[2], tables))
                         current_sql[kw].append(AGG_OPS[agg])
+                    elif vet[1] == "orderBy":
+                        stack.push(("des_asc", vet[2], AGG_OPS[agg]))
                     else:
-                        stack.push(("op", "having", vet[2], AGG_OPS[agg]))
+                        stack.push(("op", "having", vet[2], agg_idxs))
                 if len(agg_idxs) == 0:
-                    if vet[1] != "having":
+                    if vet[1] not in ("having" and "orderBy"):
                         current_sql[kw].append("none_agg")
+                    elif vet[1] == "orderBy":
+                        stack.push(("des_asc", vet[2], "none_agg"))
                     else:
                         stack.push(("op", "having", vet[2], "none_agg"))
                 # current_sql[kw].append([AGG_OPS[agg] for agg in agg_idxs])
                 # if vet[1] == "having":
                 #     stack.push(("op","having",vet[2],agg_idxs))
-                if vet[1] == "orderBy":
-                    stack.push(("des_asc",vet[2],agg_idxs))
+                # if vet[1] == "orderBy":
+                    # stack.push(("des_asc",vet[2],agg_idxs))
                 # if vet[1] == "groupBy" and has_having:
                 #     stack.push("having")
                 if vet[1] in ("select","groupBy"):
@@ -636,6 +640,8 @@ class SuperModel(nn.Module):
                         history[0].pop()
                     # history[0].pop()
             elif isinstance(vet,tuple) and vet[0] == "des_asc":
+                current_sql[kw].append(index_to_column_name(vet[1], tables))
+                current_sql[kw].append(vet[2])
                 if self.hier_col:
                     t_emb_var, col_emb_var, t_len, col_len, col_t_map_matrix = self.embed_layer.gen_hier_table_embedding(tables)
                     score = self.des_asc.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var, col_len, np.full(B, vet[1],dtype=np.int64), t_emb_var, t_len, col_t_map_matrix)
