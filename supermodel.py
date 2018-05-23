@@ -264,8 +264,10 @@ class SuperModel(nn.Module):
                 # print("agg:{}".format([AGG_OPS[agg] for agg in agg_idxs]))
                 if len(agg_idxs) > 0:
                     history[0].append(AGG_OPS[agg_idxs[0]])
-                    if vet[1] != "having":
+                    if vet[1] not in ("having" and "orderBy"):
                         current_sql[kw].append(AGG_OPS[agg_idxs[0]])
+                    elif vet[1] == "orderBy":
+                        stack.push(("des_asc", vet[2], "none_agg"))
                     else:
                         stack.push(("op","having",vet[2],AGG_OPS[agg_idxs[0]]))
                 for agg in agg_idxs[1:]:
@@ -543,8 +545,10 @@ class SuperModel(nn.Module):
                 # print("agg:{}".format([AGG_OPS[agg] for agg in agg_idxs]))
                 if len(agg_idxs) > 0:
                     history[0].append(AGG_OPS[agg_idxs[0]])
-                    if vet[1] != "having":
+                    if vet[1] not in ("having" and "orderBy"):
                         current_sql[kw].append(AGG_OPS[agg_idxs[0]])
+                    elif vet[1] == "orderBy":
+                        stack.push(("des_asc", vet[2], "none_agg"))
                     else:
                         stack.push(("op","having",vet[2],AGG_OPS[agg_idxs[0]]))
                 for agg in agg_idxs[1:]:
