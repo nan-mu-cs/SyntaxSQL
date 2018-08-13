@@ -19,11 +19,14 @@
 # }
 ################################
 
-import os
+import os, sys
 import json
 import sqlite3
-from process_sql import tokenize, get_schema, get_tables_with_alias, Schema, get_sql
 import traceback
+
+sys.path.append("/data/projects/nl2sql/datasets")
+from process_sql import tokenize, get_schema, get_tables_with_alias, Schema, get_sql
+
 
 ROOTPATH = "/data/projects/nl2sql/database/"
 
@@ -647,14 +650,12 @@ def evaluate(gold, predict):
 
     print_scores(scores)
 
-    with open('scores.json', 'wb') as f:
-        json.dump(obj=entries, fp=f, indent=4)
+    # with open('scores.json', 'wb') as f:
+    #     json.dump(obj=entries, fp=f, indent=4)
 
 
 if __name__ == "__main__":
-    gold = "./data/data_radn_split/gold.sql"
-    pred = "/home/lily/ky275/ruimethod/data/predicted_test_data_radn_split.sql"
-    #pred = "/home/lily/ky275/nl2code/lang/sql/rand1_result.txt"
+    gold = "/data/projects/nl2sql/datasets/data/gold.sql"
+    pred = "./results/ours_fullhs_result.txt"
 
     evaluate(gold, pred)
-
