@@ -24,7 +24,7 @@ python train.py \
     --train_component multi_sql \
     --epoch 200 > train__multi_sql.out.txt 2>&1
 ```
-The model save location can be configured in ``train.py``
+The model save location can be configured in ``train.py``.
 The train/dev location is specified in ``utils.py``
 
 
