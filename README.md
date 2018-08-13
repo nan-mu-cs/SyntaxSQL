@@ -10,8 +10,8 @@
 - ``models/`` contains each module file.
 - `` modules.py`` ?? what is the difference from ``models`` directory?
 
-- ``hierachical_col_emb_version`` contains the version with hierarchical table embeddings (already merged into main files, so this is folder deprecated)
-- ``trainable_version`` contains the version with trainable embeddings for SQL keywords
+- ``hierachical_col_emb_version/`` contains the version with hierarchical table embeddings (already merged into main files, so this is folder deprecated)
+- ``trainable_version/`` contains the version with trainable embeddings for SQL keywords
 
 
 
