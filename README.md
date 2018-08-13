@@ -22,10 +22,10 @@ Example:
 python train.py \
     --history full \
     --train_component multi_sql \
-    --hier_col \
-    --epoch 200 > train__multi_sql__table_hier.out.txt 2>&1
+    --epoch 200 > train__multi_sql.out.txt 2>&1
 ```
 The model save location can be configured in ``train.py``
+The train/dev location is specified in ``utils.py``
 
 
 ## Testing
