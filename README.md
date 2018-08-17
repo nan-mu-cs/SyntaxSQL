@@ -8,7 +8,6 @@
 - ``data/`` contains raw train/dev/test data
 - ``generated_datasets/`` contains several types of ``generated_data``. They are preprocessed train/dev data with full/partial history path. The latest version is from Tangra:/data/projects/nl2sql/models/datasets.
 - ``models/`` contains each module file.
-- `` modules.py`` ?? what is the difference from ``models`` directory?
 
 - ``hierachical_col_emb_version/`` contains the version with hierarchical table embeddings (already merged into main files, so this is folder deprecated)
 - ``trainable_version/`` contains the version with trainable embeddings for SQL keywords
