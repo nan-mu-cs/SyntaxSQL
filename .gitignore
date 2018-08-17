@@ -1,5 +1,5 @@
 *.pyc
 glove
 saved_models*
-results
+test_results
 generated_datasets/generated_data_wikisql*

@@ -92,7 +92,7 @@ def load_data(sql_paths, table_paths, use_small=False):
 
 
 def load_train_dev_dataset(component,train_dev,history):
-    return json.load(open("./generated_data/{}_{}_{}_dataset.json".format(history,train_dev,component)))
+    return json.load(open("./generated_datasets/generated_data/{}_{}_{}_dataset.json".format(history,train_dev,component)))
 
 def load_dataset(dataset_id, use_small=False):
     if dataset_id == 2:
@@ -475,7 +475,7 @@ def epoch_acc(model, batch_size, component, embed_layer,data, hier_col, error_pr
             else:
                 col_emb_var, col_lens = embed_layer.gen_table_embedding(tables)
                 score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len, col_emb_var=col_emb_var, col_len=col_lens, gt_col=gt_col)
-                
+
         elif component == "andor":
             score = model.forward(q_emb_var, q_len, hs_emb_var, hs_len)
         # print("label {}".format(label))
@@ -503,10 +503,12 @@ def test_acc(model, batch_size, data,output_path):
     table_dict = get_table_dict("/data/projects/nl2sql/datasets/data/tables.json")
     f = open(output_path,"w")
     for item in data[:]:
+        db_id = item["db_id"]
+        if db_id not in table_dict: print "Error %s not in table_dict" % db_id
         try:
-            sql = model.forward([item["question_toks"]]*batch_size,[],table_dict[item["db_id"]])
+            sql = model.forward([item["question_toks"]]*batch_size,[],table_dict[db_id])
             print(sql)
-            sql = model.gen_sql(sql,table_dict[item["db_id"]])
+            sql = model.gen_sql(sql,table_dict[db_id])
         except:
             sql = "select a from b"
         print(sql)
