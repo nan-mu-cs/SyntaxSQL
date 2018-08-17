@@ -655,7 +655,13 @@ def evaluate(gold, predict):
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--pred_path',type=str)
+    args = parser.parse_args()
+
     gold = "/data/projects/nl2sql/datasets/data/gold.sql"
-    pred = "./results/ours_fullhs_result.txt"
+    # pred = "./results/ours_fullhs_result.txt"
+    pred = args.pred_path
 
     evaluate(gold, pred)

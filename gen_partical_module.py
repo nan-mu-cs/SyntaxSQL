@@ -1,5 +1,5 @@
 '''
-python gen_partical_module.py dev|train (full|part)
+python gen_partical_module.py train|dev (full|part)
 '''
 
 import json
@@ -8,10 +8,10 @@ from collections import defaultdict
 train_dev = "train"
 if len(sys.argv) > 1:
     train_dev = sys.argv[1]
-train_data_path = "./data/train.json"
-table_data_path = "./data/tables.json"
+train_data_path = "./data_final/train.json"
+table_data_path = "./data_final/tables.json"
 if train_dev == "dev":
-    train_data_path = "./data/dev.json"
+    train_data_path = "./data_final/dev.json"
 train_data = json.load(open(train_data_path))
 history_option = "full"
 if len(sys.argv) > 2:
