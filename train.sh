@@ -3,4 +3,7 @@
 
 #source /data/lily/af726/tools/envs/pytorch2/bin/activate
 
-python train.py --toy --sd run_results --train_component root_tem --epoch 1
+CUDA_VISIBLE_DEVICES=3 python train.py \
+    --history full \
+    --train_component multi_sql \
+    --epoch 200 > train__multi_sql.out.txt 2>&1

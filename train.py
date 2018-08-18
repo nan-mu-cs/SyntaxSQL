@@ -25,7 +25,7 @@ if __name__ == '__main__':
             help='If set, use small data; used for fast debugging.')
     parser.add_argument('--suffix', type=str, default='',
             help='The suffix at the end of saved model name.')
-    parser.add_argument('--sd', type=str, default='',
+    parser.add_argument('--save_dir', type=str, default='',
             help='set model save directory.')
     parser.add_argument('--dataset', type=int, default=0,
             help='0: original dataset, 1: re-split dataset, 2: new complex dataset')
@@ -125,7 +125,7 @@ if __name__ == '__main__':
         if acc > best_acc:
             best_acc = acc
             print("Save model...")
-            torch.save(model.state_dict(),"saved_models/{}_models.dump".format(args.train_component))
+            torch.save(model.state_dict(), args.save_dir+"/{}_models.dump".format(args.train_component))
         # print '\nTrain sel acc: %s, sel # acc: %s' % (train_bkd_acc[1], train_bkd_acc[0])
         #print ' Breakdown results: agg #: %s, agg: %s, sel: %s, cond: %s, sel #: %s, cond #: %s, cond col: %s, cond op: %s, cond val: %s, group #: %s, group: %s, order #: %s, order: %s, order agg: %s, order par: %s'\
         #    % (train_bkd_acc[0], train_bkd_acc[1], train_bkd_acc[2], train_bkd_acc[3], train_bkd_acc[4], train_bkd_acc[5], train_bkd_acc[6], train_bkd_acc[7], train_bkd_acc[8], train_bkd_acc[9], train_bkd_acc[10], train_bkd_acc[11], train_bkd_acc[12], train_bkd_acc[13], train_bkd_acc[14])

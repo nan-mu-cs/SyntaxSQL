@@ -242,7 +242,7 @@ class SuperModel(nn.Module):
                 # history.append(index_to_column_name(cols[-1], tables[0]))
             elif isinstance(vet,tuple) and vet[0] == "agg":
                 history[0].append(index_to_column_name(vet[2], tables))
-                if vet[1] != "having":
+                if vet[1] not in ("having","orderBy"): #DEBUG-ed 20180817
                     try:
                         current_sql[kw].append(index_to_column_name(vet[2], tables))
                     except Exception as e:
@@ -264,16 +264,16 @@ class SuperModel(nn.Module):
                 # print("agg:{}".format([AGG_OPS[agg] for agg in agg_idxs]))
                 if len(agg_idxs) > 0:
                     history[0].append(AGG_OPS[agg_idxs[0]])
-                    if vet[1] not in ("having" and "orderBy"):
+                    if vet[1] not in ("having", "orderBy"):
                         current_sql[kw].append(AGG_OPS[agg_idxs[0]])
                     elif vet[1] == "orderBy":
-                        stack.push(("des_asc", vet[2], "none_agg"))
+                        stack.push(("des_asc", vet[2], AGG_OPS[agg_idxs[0]])) #DEBUG-ed 20180817
                     else:
                         stack.push(("op","having",vet[2],AGG_OPS[agg_idxs[0]]))
                 for agg in agg_idxs[1:]:
                     history[0].append(index_to_column_name(vet[2], tables))
                     history[0].append(AGG_OPS[agg])
-                    if vet[1] not in ("having" and "orderBy"):
+                    if vet[1] not in ("having", "orderBy"):
                         current_sql[kw].append(index_to_column_name(vet[2], tables))
                         current_sql[kw].append(AGG_OPS[agg])
                     elif vet[1] == "orderBy":
@@ -281,7 +281,7 @@ class SuperModel(nn.Module):
                     else:
                         stack.push(("op", "having", vet[2], agg_idxs))
                 if len(agg_idxs) == 0:
-                    if vet[1] not in ("having" and "orderBy"):
+                    if vet[1] not in ("having", "orderBy"):
                         current_sql[kw].append("none_agg")
                     elif vet[1] == "orderBy":
                         stack.push(("des_asc", vet[2], "none_agg"))
@@ -290,8 +290,8 @@ class SuperModel(nn.Module):
                 # current_sql[kw].append([AGG_OPS[agg] for agg in agg_idxs])
                 # if vet[1] == "having":
                 #     stack.push(("op","having",vet[2],agg_idxs))
-                if vet[1] == "orderBy":
-                    stack.push(("des_asc",vet[2],agg_idxs))
+                # if vet[1] == "orderBy":
+                #     stack.push(("des_asc",vet[2],agg_idxs))
                 # if vet[1] == "groupBy" and has_having:
                 #     stack.push("having")
             elif isinstance(vet,tuple) and vet[0] == "op":
@@ -523,7 +523,7 @@ class SuperModel(nn.Module):
                 # history.append(index_to_column_name(cols[-1], tables[0]))
             elif isinstance(vet,tuple) and vet[0] == "agg":
                 history[0].append(index_to_column_name(vet[2], tables))
-                if vet[1] != "having":
+                if vet[1] not in ("having","orderBy"): #DEBUG-ed 20180817
                     try:
                         current_sql[kw].append(index_to_column_name(vet[2], tables))
                     except Exception as e:
@@ -554,7 +554,7 @@ class SuperModel(nn.Module):
                 for agg in agg_idxs[1:]:
                     history[0].append(index_to_column_name(vet[2], tables))
                     history[0].append(AGG_OPS[agg])
-                    if vet[1] not in ("having" and "orderBy"):
+                    if vet[1] not in ("having", "orderBy"):
                         current_sql[kw].append(index_to_column_name(vet[2], tables))
                         current_sql[kw].append(AGG_OPS[agg])
                     elif vet[1] == "orderBy":
@@ -696,7 +696,7 @@ class SuperModel(nn.Module):
         ret = []
         for i in range(0,len(sql),2):
             # if len(sql[i+1]) == 0:
-            if sql[i+1] == "none_agg":
+            if sql[i+1] == "none_agg" or not isinstance(sql[i+1],basestring): #DEBUG-ed 20180817
                 ret.append(self.gen_col(sql[i],table,table_alias_dict))
             else:
                 ret.append("{}({})".format(sql[i+1], self.gen_col(sql[i], table, table_alias_dict)))
@@ -735,8 +735,8 @@ class SuperModel(nn.Module):
         if sql[-1] == True:
             limit = "limit 1"
         for i in range(0,len(sql),4):
-            if sql[i+1] == "none_agg":
-                ret.append("{} {}".format(self.gen_col(sql[i],table,table_alias_dict),sql[i+2]))
+            if sql[i+1] == "none_agg" or not isinstance(sql[i+1],basestring): #DEBUG-ed 20180817
+                ret.append("{} {}".format(self.gen_col(sql[i],table,table_alias_dict), sql[i+2]))
             else:
                 ret.append("{}({}) {}".format(sql[i+1], self.gen_col(sql[i], table, table_alias_dict),sql[i+2]))
         return "order by {} {}".format(",".join(ret),limit)

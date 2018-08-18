@@ -1,5 +1,5 @@
 '''
-python gen_partical_module.py dev|train (full|part)
+python gen_partical_module.py train|dev (full|part)
 '''
 
 import json
