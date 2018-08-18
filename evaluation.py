@@ -514,7 +514,20 @@ def evaluate(gold, predict):
         for type_ in partial_types:
             scores[level]['partial'][type_] = {'acc': 0., 'rec': 0., 'f1': 0.,'acc_count':0,'rec_count':0}
 
+    db_stat = dict()
     eval_err_num = 0
+    db_dict = dict()
+    db_data = json.load(open("/data/projects/nl2sql/datasets/data/tables.json"))
+    for item in db_data:
+        db_dict[item["db_id"]] = item
+
+    max_fk_num = -1
+    min_fk_num = float("inf")
+    max_table_num = -1
+    min_table_num = float("inf")
+    max_col_num = -1
+    min_col_num = float("inf")
+
     for p, g in zip(plist, glist):
         # print(p)
         # print(g)
@@ -522,6 +535,21 @@ def evaluate(gold, predict):
         p_str = p[0]
         #print(g)
         g_str, db = g
+        db_name = db
+        if db_name not in db_stat:
+            db_stat[db_name] = {
+                "fk":len(db_dict[db_name]["foreign_keys"]),
+                "table":len(db_dict[db_name]["table_names_original"]),
+                "col": len(db_dict[db_name]["column_names_original"]),
+                "total":0,
+                "correct":0
+            }
+            max_fk_num = max(max_fk_num,len(db_dict[db_name]["foreign_keys"]))
+            min_fk_num = min(min_fk_num,len(db_dict[db_name]["foreign_keys"]))
+            max_col_num = max(max_col_num,len(db_dict[db_name]["column_names_original"]))
+            min_col_num = min(min_col_num,len(db_dict[db_name]["column_names_original"]))
+            max_table_num = max(max_table_num,len(db_dict[db_name]["table_names_original"]))
+            min_table_num = min(min_table_num,len(db_dict[db_name]["table_names_original"]))
         db = os.path.join(ROOTPATH, db, db + ".sqlite")
         schema = Schema(get_schema(db))
         g_sql = get_sql(schema, g_str)
@@ -531,6 +559,7 @@ def evaluate(gold, predict):
         scores[hardness]['count'] += 1
         scores['all']['count'] += 1
 
+        db_stat[db_name]["total"] += 1
         # print("p:{}".format(p_str))
 
         # if not isValidSQL(p_str, db):
@@ -583,10 +612,11 @@ def evaluate(gold, predict):
         #scores['all']['count'] += 1
         exact_score = evaluator.eval_exact_match(p_sql, g_sql)
         partial_scores = evaluator.partial_scores
-        if exact_score == 0:
-            print("{} pred: {}".format(hardness,p_str))
-            print("{} gold: {}".format(hardness,g_str))
-            print("")
+        if exact_score == 1:
+            # print("{} pred: {}".format(hardness,p_str))
+            # print("{} gold: {}".format(hardness,g_str))
+            # print("")
+            db_stat[db_name]["correct"] += 1
         scores[hardness]['exact'] += exact_score
         scores['all']['exact'] += exact_score
         for type_ in partial_types:
@@ -646,14 +676,17 @@ def evaluate(gold, predict):
         #     scores['all']['partial'][type_]['rec_count'] + scores['all']['partial'][type_]['acc_count'])
 
     print_scores(scores)
-
+    json.dump(db_stat,open("./typesql_db_data.json","w"),indent=4)
+    print("fk: {} - {}".format(min_fk_num,max_fk_num))
+    print("table: {} - {}".format(min_table_num,max_table_num))
+    print("col: {} - {}".format(min_col_num,max_col_num))
     with open('scores.json', 'wb') as f:
         json.dump(obj=entries, fp=f, indent=4)
 
 
 if __name__ == "__main__":
-    gold = "./data/data_radn_split/gold.sql"
-    pred = "/home/lily/ky275/ruimethod/data/predicted_test_data_radn_split.sql"
+    gold = "/home/lily/ky275/nl2sql/data/data/gold.sql"
+    pred = "/data/projects/nl2sql/models/typesql/typesql_test.txt"
     #pred = "/home/lily/ky275/nl2code/lang/sql/rand1_result.txt"
 
     evaluate(gold, pred)
