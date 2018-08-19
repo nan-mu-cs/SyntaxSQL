@@ -649,7 +649,7 @@ def eval_exec_match(db, p_str, q_str, pred, label):
         cursor.execute(p_str)
         p_res = cursor.fetchall()
     except:
-        return 0
+        return False
 
     cursor.execute(q_str)
     q_res = cursor.fetchall()
@@ -657,7 +657,7 @@ def eval_exec_match(db, p_str, q_str, pred, label):
     def res_map(res, val_units):
         rmap = {}
         for idx, val_unit in enumerate(val_units):
-            key = val_unit[1] if not val_unit[2] else (val_unit[1], val_unit[2])
+            key = tuple(val_unit[1]) if not val_unit[2] else (val_unit[0], tuple(val_unit[1]), tuple(val_unit[2]))
             rmap[key] = [r[idx] for r in res]
         return rmap
 
