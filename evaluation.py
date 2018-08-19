@@ -221,7 +221,7 @@ def eval_and_or(pred, label):
     # num_label_o = len([token for token in label_ao if token=='or'])
     # cnt += min(num_pred_o, num_label_o)
 
-    return label_total, pred_total, cnt
+    # return label_total, pred_total, cnt
 
 
 def get_nestedSQL(sql):
@@ -386,23 +386,6 @@ class Evaluator:
             return "hard"
         else:
             return "extra"
-
-    # def eval_hardness(self, sql):
-    #     count_comp1_ = count_component1(sql)
-    #     count_comp2_ = count_component2(sql)
-    #     count_others_ = count_others(sql)
-    #
-    #     if count_comp1_ <= 1 and count_others_ == 0:
-    #         return "easy"
-    #     elif (count_others_ <= 2 and count_comp1_ <= 1) or \
-    #         (count_comp1_ <= 2 and count_others_ < 2):
-    #         return "medium"
-    #     elif (count_others_ > 2 and count_comp1_ <= 2 and count_comp2_ == 0) or \
-    #         (2 < count_comp1_ <= 3 and count_others_ <= 2 and count_comp2_ == 0) or \
-    #         (count_comp1_ <= 1 and count_others_ == 0 and count_comp2_ <= 1):
-    #         return "hard"
-    #     else:
-    #         return "extra"
 
     def eval_exact_match(self, pred, label):
         partial_scores = self.eval_partial_match(pred, label)
@@ -653,6 +636,34 @@ def evaluate(gold, predict):
     # with open('scores.json', 'wb') as f:
     #     json.dump(obj=entries, fp=f, indent=4)
 
+
+def eval_exec_match(db, p_str, q_str, pred, label):
+    """
+    return 1 if the values between prediction and gold are matching
+    in the corresponding index. Currently not support multiple col_unit(pairs).
+    """
+    db = os.path.join(ROOTPATH, db, db + ".sqlite")
+    conn = sqlite3.connect(db)
+    cursor = conn.cursor()
+    try:
+        cursor.execute(p_str)
+        p_res = cursor.fetchall()
+    except:
+        return 0
+
+    cursor.execute(q_str)
+    q_res = cursor.fetchall()
+
+    def res_map(res, val_units):
+        rmap = {}
+        for idx, val_unit in enumerate(val_units):
+            key = val_unit[1] if not val_unit[2] else (val_unit[1], val_unit[2])
+            rmap[key] = [r[idx] for r in res]
+        return rmap
+
+    p_val_units = [unit[1] for unit in pred['select'][1]]
+    q_val_units = [unit[1] for unit in label['select'][1]]
+    return res_map(p_res, p_val_units) == res_map(q_res, q_val_units)
 
 if __name__ == "__main__":
     import argparse

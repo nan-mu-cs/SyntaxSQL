@@ -164,6 +164,13 @@ def get_tables_with_alias(schema, toks):
     return tables
 
 
+def skip_semicolon(toks, start_idx):
+    idx = start_idx
+    while idx < len(toks) and toks[idx] == ";":
+        idx += 1
+    return idx
+
+
 def parse_col(toks, start_idx, tables_with_alias, schema, default_tables=None):
     """
         :returns next idx, column id
@@ -510,7 +517,7 @@ def parse_sql(toks, start_idx, tables_with_alias, schema):
     from_end_idx, table_units, conds, default_tables = parse_from(toks, start_idx, tables_with_alias, schema)
     sql['from'] = {'table_units': table_units, 'conds': conds}
     # select clause
-    _, select_col_units = parse_select(toks, start_idx, tables_with_alias, schema, default_tables)
+    _, select_col_units = parse_select(toks, idx, tables_with_alias, schema, default_tables)
     idx = from_end_idx
     sql['select'] = select_col_units
     # where clause
@@ -529,9 +536,11 @@ def parse_sql(toks, start_idx, tables_with_alias, schema):
     idx, limit_val = parse_limit(toks, idx)
     sql['limit'] = limit_val
 
+    idx = skip_semicolon(toks, idx)
     if isBlock:
         assert toks[idx] == ')'
         idx += 1  # skip ')'
+    idx = skip_semicolon(toks, idx)
 
     # intersect/union/except clause
     for op in SQL_OPS:  # initialize IUE
@@ -573,7 +582,7 @@ if __name__ == '__main__':
         # query = entry["query"]
         # query = "SELECT template_id FROM Templates WHERE template_type_code  =  \"PP\" OR template_type_code  =  \"PPT\""
         # query = "SELECT count(*) FROM Paragraphs AS T1 JOIN Documents AS T2 ON T1.document_ID  =  T2.document_ID WHERE T2.document_name  =  'Summer Show'"
-        query = "SELECT T1.paragraph_id ,   T1.paragraph_text FROM Paragraphs AS T1 JOIN Documents AS T2 ON T1.document_id  =  T2.document_id WHERE T2.Document_Name  =  'Welcome to NY'"
+        query = "(SELECT T1.paragraph_id ,   T1.paragraph_text FROM Paragraphs AS T1 JOIN Documents AS T2 ON T1.document_id  =  T2.document_id WHERE T2.Document_Name  =  'Welcome to NY';);"
         toks = tokenize(query)
         tables_with_alias = get_tables_with_alias(schema.schema, toks)
         _, sql = parse_sql(toks, 0, tables_with_alias, schema)
