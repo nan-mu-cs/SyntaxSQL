@@ -777,7 +777,7 @@ def parse_data_full_history(question_tokens, sql, table, history):
             if node[1] == "where":
                 # stack.append(("value", node[2], "where"))
                 stack.append(("op", node[2], "where"))
-                masks.append(COMPONENTS_DICT['op'])
+                # masks.append(COMPONENTS_DICT['op'])
             elif node[1] != "groupBy":
                 labels = []
                 for sql_item, col in node[2]:
@@ -820,22 +820,22 @@ def parse_data_full_history(question_tokens, sql, table, history):
             if len(stack) > 0:
                 masks.append(-1)
         elif node[0] == "value":
-            masks.append(COMPONENTS_DICT['value'])
+            masks.append([COMPONENTS_DICT['value'],COMPONENTS_DICT['root_tem']])
             val1 = node[1][3]
             val2 = node[1][4]
             if val2:
                 if len(stack) > 0:
                     masks.append(-1)
-                    masks.append(-1)
-                full_labels.append(val1)
-                full_labels.append(val2)
-                history.append(val1)
-                history.append(val2)
+                    # masks.append(-1)
+                full_labels.append([1,[val1,val2]])
+                # full_labels.append(val2)
+                history.append([val1,val2])
+                # history.append(val2)
             else:
                 if len(stack) > 0:
                     masks.append(-1)
-                full_labels.append(val1)
-                history.append(val1)
+                full_labels.append([1,[val1]])
+                history.append([val1])
 
         elif node[0] == "op":
             # history.append(node[1][0][1])
@@ -856,10 +856,12 @@ def parse_data_full_history(question_tokens, sql, table, history):
                 if label != -1:
                     labels.append(label)
                     history.append(NEW_WHERE_OPS[label])
-                masks.append(COMPONENTS_DICT['root_tem'])
+
+                # masks.append(COMPONENTS_DICT['root_tem'])
                 if isinstance(s[0], dict):
                     stack.append(("root", s[0]))
-                    full_labels.append(0)
+                    masks.append(COMPONENTS_DICT['root_tem'])
+                    full_labels.append([0,[]])
                     # history.append("root")
                     # dataset['root_tem_dataset'].append({
                     #     "question_tokens": question_tokens,
@@ -870,7 +872,7 @@ def parse_data_full_history(question_tokens, sql, table, history):
                     # })
                 else:
                     stack.append(("value",sql_item))
-                    full_labels.append(0)
+                    # full_labels.append(0)
                     # dataset['root_tem_dataset'].append({
                     #     "question_tokens": question_tokens,
                     #     "ts": table_schema,
@@ -882,13 +884,15 @@ def parse_data_full_history(question_tokens, sql, table, history):
             if len(labels) > 2:
                 print(question_tokens)
             # dataset['op_dataset'][-1]["label"] = labels
+            # full_labels.append(labels)
+            masks.append(COMPONENTS_DICT['op'])
             full_labels.append(labels)
         elif node[0] == "where":
             history.append(node[0])
-            hist, label = AndOrPredictor(question_tokens, node[1], table, history).generate_output()
-            if label != -1:
-                masks.append(COMPONENTS_DICT['andor'])
-                full_labels.append(label)
+            hist, andor_label = AndOrPredictor(question_tokens, node[1], table, history).generate_output()
+            # if andor_label != -1:
+                # masks.append(COMPONENTS_DICT['andor'])
+                # full_labels.append(label)
                 # dataset['andor_dataset'].append({
                 #     "question_tokens": question_tokens,
                 #     "ts": table_schema,
@@ -908,7 +912,14 @@ def parse_data_full_history(question_tokens, sql, table, history):
                 #     "history": history[:],
                 #     "label": get_label_cols(with_join, fk_dict, l[1])
                 # })
-                full_labels.append(get_label_cols(with_join, fk_dict, l[1]))
+                label = get_label_cols(with_join, fk_dict, l[1])
+                if len(label) > 1:
+                    full_labels.append([label,[andor_label]])
+                    masks.append([COMPONENTS_DICT['col'],COMPONENTS_DICT['andor']])
+                else:
+                    full_labels.append([label,[]])
+                    masks.append([COMPONENTS_DICT['col'], COMPONENTS_DICT['andor']])
+                # full_labels.append()
                 for col, sql_item in zip(l[1], s):
                     key = "{}{}{}".format(col[0][0], col[0][1], col[0][2])
                     if key not in op_col_dict:
@@ -1003,13 +1014,13 @@ def replace_value(conditions,nl,mp):
                             idx = i
                             break
                     if idx == -1:
-                        print(old_value)
-                        print(nl)
+                        # print(old_value)
+                        # print(nl)
                         continue
                 nl = nl[:idx] + [new_val] + nl[idx+len(value):]
             except Exception:
-                print(old_value)
-                print(nl)
+                # print(old_value)
+                # print(nl)
                 continue
     return conditions,nl
 
