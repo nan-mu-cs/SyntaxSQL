@@ -69,22 +69,31 @@ class SuperModel(nn.Module):
 
         # initial all modules
         self.multi_sql = MultiSqlPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=gpu)
+        self.multi_sql.eval()
 
         self.key_word = KeyWordPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=gpu)
+        self.key_word.eval()
 
         self.col = ColPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=gpu,hier_col=hier_col)
+        self.col.eval()
 
         self.op = OpPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=gpu,hier_col=hier_col)
+        self.op.eval()
 
         self.agg = AggPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=gpu,hier_col=hier_col)
+        self.agg.eval()
 
         self.root_teminal = RootTeminalPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=gpu,hier_col=hier_col)
+        self.root_teminal.eval()
 
         self.des_asc = DesAscLimitPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=gpu,hier_col=hier_col)
+        self.des_asc.eval()
 
         self.having = HavingPredictor(N_word=N_word,N_h=N_h,N_depth=N_depth,gpu=gpu,hier_col=hier_col)
+        self.having.eval()
 
         self.andor = AndOrPredictor(N_word=N_word, N_h=N_h, N_depth=N_depth, gpu=gpu)
+        self.andor.eval()
 
         self.softmax = nn.Softmax() #dim=1
         self.CE = nn.CrossEntropyLoss()
