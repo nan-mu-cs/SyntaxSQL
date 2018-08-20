@@ -299,45 +299,6 @@ def parse_value(toks, start_idx, tables_with_alias, schema, default_tables=None)
         idx += 1
 
     return idx, val
-# def parse_value(toks, start_idx, tables_with_alias, schema, default_tables=None):
-#     idx = start_idx
-#     len_ = len(toks)
-#
-#     isBlock = False
-#     if toks[idx] == '(':
-#         isBlock = True
-#         idx += 1
-#
-#     if toks[idx] == 'select':
-#         idx, val = parse_sql(toks, idx, tables_with_alias, schema)
-#     elif "\"" in toks[idx]:  # token is a string value
-#         val = toks[idx]
-#         idx += 1
-#     else:
-#         end_idx = idx
-#         while end_idx < len_ and toks[end_idx] != ',' and toks[end_idx] != ')'\
-#             and toks[end_idx] != 'and' and toks[end_idx] not in CLAUSE_KEYWORDS:
-#             end_idx += 1
-#
-#         tok = "".join(toks[idx: end_idx])
-#         val = tok
-#
-#         try:
-#             idx, val = parse_col_unit(toks[start_idx: end_idx], 0, tables_with_alias, schema, default_tables)
-#         except:
-#             # print "Value is not a column"
-#             try:
-#                 val = float(val)
-#             except:
-#                 pass
-#                 # print "Value is not a number"
-#         idx = end_idx
-#
-#     if isBlock:
-#         assert toks[idx] == ')'
-#         idx += 1
-#
-#     return idx, val
 
 
 def parse_condition(toks, start_idx, tables_with_alias, schema, default_tables=None):
@@ -542,7 +503,7 @@ def parse_sql(toks, start_idx, tables_with_alias, schema):
     from_end_idx, table_units, conds, default_tables = parse_from(toks, start_idx, tables_with_alias, schema)
     sql['from'] = {'table_units': table_units, 'conds': conds}
     # select clause
-    _, select_col_units = parse_select(toks, start_idx, tables_with_alias, schema, default_tables)
+    _, select_col_units = parse_select(toks, idx, tables_with_alias, schema, default_tables)
     idx = from_end_idx
     sql['select'] = select_col_units
     # where clause
@@ -561,9 +522,11 @@ def parse_sql(toks, start_idx, tables_with_alias, schema):
     idx, limit_val = parse_limit(toks, idx)
     sql['limit'] = limit_val
 
+    idx = skip_semicolon(toks, idx)
     if isBlock:
         assert toks[idx] == ')'
         idx += 1  # skip ')'
+    idx = skip_semicolon(toks, idx)
 
     # intersect/union/except clause
     for op in SQL_OPS:  # initialize IUE
@@ -589,6 +552,14 @@ def get_sql(schema, query):
 
     return sql
 
+
+def skip_semicolon(toks, start_idx):
+    idx = start_idx
+    while idx < len(toks) and toks[idx] == ";":
+        idx += 1
+    return idx
+
+
 if __name__ == '__main__':
     # print get_schema('art_1.sqlite')
     # fpath = '/Users/zilinzhang/Workspace/Github/nl2sql/Data/Initial/table/art_1_table.json'
@@ -605,7 +576,7 @@ if __name__ == '__main__':
         # query = entry["query"]
         # query = "SELECT template_id FROM Templates WHERE template_type_code  =  \"PP\" OR template_type_code  =  \"PPT\""
         # query = "SELECT count(*) FROM Paragraphs AS T1 JOIN Documents AS T2 ON T1.document_ID  =  T2.document_ID WHERE T2.document_name  =  'Summer Show'"
-        query = "SELECT T1.paragraph_id ,   T1.paragraph_text FROM Paragraphs AS T1 JOIN Documents AS T2 ON T1.document_id  =  T2.document_id WHERE T2.Document_Name  =  'Welcome to NY'"
+        query = "(SELECT T1.paragraph_id ,   T1.paragraph_text FROM Paragraphs AS T1 JOIN Documents AS T2 ON T1.document_id  =  T2.document_id WHERE T2.Document_Name  =  'Welcome to NY';);"
         toks = tokenize(query)
         tables_with_alias = get_tables_with_alias(schema.schema, toks)
         _, sql = parse_sql(toks, 0, tables_with_alias, schema)

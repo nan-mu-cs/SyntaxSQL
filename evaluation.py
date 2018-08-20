@@ -24,11 +24,11 @@ import json
 import sqlite3
 import traceback
 
-sys.path.append("/data/projects/nl2sql/datasets")
+# sys.path.append("/data/projects/nl2sql/datasets")
 from process_sql import tokenize, get_schema, get_tables_with_alias, Schema, get_sql
 
 
-ROOTPATH = "/data/projects/nl2sql/database/"
+ROOTPATH = "./database"
 
 CLAUSE_KEYWORDS = ('select', 'from', 'where', 'group', 'order', 'limit', 'intersect', 'union', 'except')
 JOIN_KEYWORDS = ('join', 'on', 'as')
@@ -467,7 +467,7 @@ def print_scores(scores):
     print '-------------------EXEC ACCURACY-----------------------'
     this_scores = [scores[level]['exec'] for level in levels]
     print "{:20} {:<20.3f} {:<20.3f} {:<20.3f} {:<20.3f} {:<20.3f}".format("exec", *this_scores)
-    
+
     print '---------------------ACCURACY--------------------------'
     for type_ in partial_types:
         this_scores = [scores[level]['partial'][type_]['acc'] for level in levels]
