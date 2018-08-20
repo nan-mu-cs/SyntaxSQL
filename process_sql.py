@@ -164,13 +164,6 @@ def get_tables_with_alias(schema, toks):
     return tables
 
 
-def skip_semicolon(toks, start_idx):
-    idx = start_idx
-    while idx < len(toks) and toks[idx] == ";":
-        idx += 1
-    return idx
-
-
 def parse_col(toks, start_idx, tables_with_alias, schema, default_tables=None):
     """
         :returns next idx, column id
@@ -289,24 +282,17 @@ def parse_value(toks, start_idx, tables_with_alias, schema, default_tables=None)
         val = toks[idx]
         idx += 1
     else:
-        end_idx = idx
-        while end_idx < len_ and toks[end_idx] != ',' and toks[end_idx] != ')'\
-            and toks[end_idx] != 'and' and toks[end_idx] not in CLAUSE_KEYWORDS:
-            end_idx += 1
-
-        tok = "".join(toks[idx: end_idx])
-        val = tok
-
         try:
-            idx, val = parse_col_unit(toks[start_idx: end_idx], 0, tables_with_alias, schema, default_tables)
+            val = float(toks[idx])
+            idx += 1
         except:
-            # print "Value is not a column"
-            try:
-                val = float(val)
-            except:
-                pass
-                # print "Value is not a number"
-        idx = end_idx
+            end_idx = idx
+            while end_idx < len_ and toks[end_idx] != ',' and toks[end_idx] != ')'\
+                and toks[end_idx] != 'and' and toks[end_idx] not in CLAUSE_KEYWORDS:
+                end_idx += 1
+
+            idx, val = parse_col_unit(toks[start_idx: end_idx], 0, tables_with_alias, schema, default_tables)
+            idx = end_idx
 
     if isBlock:
         assert toks[idx] == ')'
@@ -565,6 +551,14 @@ def get_sql(schema, query):
     _, sql = parse_sql(toks, 0, tables_with_alias, schema)
 
     return sql
+
+
+def skip_semicolon(toks, start_idx):
+    idx = start_idx
+    while idx < len(toks) and toks[idx] == ";":
+        idx += 1
+    return idx
+
 
 if __name__ == '__main__':
     # print get_schema('art_1.sqlite')

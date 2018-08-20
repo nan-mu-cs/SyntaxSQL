@@ -24,11 +24,11 @@ import json
 import sqlite3
 import traceback
 
-sys.path.append("/data/projects/nl2sql/datasets")
+# sys.path.append("/data/projects/nl2sql/datasets")
 from process_sql import tokenize, get_schema, get_tables_with_alias, Schema, get_sql
 
 
-ROOTPATH = "/data/projects/nl2sql/database/"
+ROOTPATH = "./database"
 
 CLAUSE_KEYWORDS = ('select', 'from', 'where', 'group', 'order', 'limit', 'intersect', 'union', 'except')
 JOIN_KEYWORDS = ('join', 'on', 'as')
@@ -221,7 +221,7 @@ def eval_and_or(pred, label):
     # num_label_o = len([token for token in label_ao if token=='or'])
     # cnt += min(num_pred_o, num_label_o)
 
-    return label_total, pred_total, cnt
+    # return label_total, pred_total, cnt
 
 
 def get_nestedSQL(sql):
@@ -387,23 +387,6 @@ class Evaluator:
         else:
             return "extra"
 
-    # def eval_hardness(self, sql):
-    #     count_comp1_ = count_component1(sql)
-    #     count_comp2_ = count_component2(sql)
-    #     count_others_ = count_others(sql)
-    #
-    #     if count_comp1_ <= 1 and count_others_ == 0:
-    #         return "easy"
-    #     elif (count_others_ <= 2 and count_comp1_ <= 1) or \
-    #         (count_comp1_ <= 2 and count_others_ < 2):
-    #         return "medium"
-    #     elif (count_others_ > 2 and count_comp1_ <= 2 and count_comp2_ == 0) or \
-    #         (2 < count_comp1_ <= 3 and count_others_ <= 2 and count_comp2_ == 0) or \
-    #         (count_comp1_ <= 1 and count_others_ == 0 and count_comp2_ <= 1):
-    #         return "hard"
-    #     else:
-    #         return "extra"
-
     def eval_exact_match(self, pred, label):
         partial_scores = self.eval_partial_match(pred, label)
         self.partial_scores = partial_scores
@@ -481,6 +464,10 @@ def print_scores(scores):
     exact_scores = [scores[level]['exact'] for level in levels]
     print "{:20} {:<20.3f} {:<20.3f} {:<20.3f} {:<20.3f} {:<20.3f}".format("exact", *exact_scores)
 
+    print '-------------------EXEC ACCURACY-----------------------'
+    this_scores = [scores[level]['exec'] for level in levels]
+    print "{:20} {:<20.3f} {:<20.3f} {:<20.3f} {:<20.3f} {:<20.3f}".format("exec", *this_scores)
+
     print '---------------------ACCURACY--------------------------'
     for type_ in partial_types:
         this_scores = [scores[level]['partial'][type_]['acc'] for level in levels]
@@ -514,6 +501,7 @@ def evaluate(gold, predict):
 
     for level in levels:
         scores[level] = {'count': 0, 'partial': {}, 'exact': 0.}
+        scores[level]['exec'] = 0
         for type_ in partial_types:
             scores[level]['partial'][type_] = {'acc': 0., 'rec': 0., 'f1': 0.,'acc_count':0,'rec_count':0}
 
@@ -584,6 +572,9 @@ def evaluate(gold, predict):
 
         #scores[hardness]['count'] += 1
         #scores['all']['count'] += 1
+        exec_score = eval_exec_match(db, p_str, g_str, p_sql, g_sql)
+        if exec_score:
+            scores[hardness]['exec'] += 1
         exact_score = evaluator.eval_exact_match(p_sql, g_sql)
         partial_scores = evaluator.partial_scores
         if exact_score == 0:
@@ -627,6 +618,7 @@ def evaluate(gold, predict):
 
     for level in levels:
         scores[level]['exact'] /= scores[level]['count']
+        scores[level]['exec'] /= scores[level]['count']
         for type_ in partial_types:
             # print("part:{} level:{} acc:{} acc_count:{} rec:{} rec_count:{}".format(type_,level,scores[level]['partial'][type_]['acc'],scores[level]['partial'][type_]['acc_count'],scores[level]['partial'][type_]['rec'],scores[level]['partial'][type_]['rec_count']))
             if scores[level]['partial'][type_]['acc_count'] == 0:
@@ -653,6 +645,34 @@ def evaluate(gold, predict):
     # with open('scores.json', 'wb') as f:
     #     json.dump(obj=entries, fp=f, indent=4)
 
+
+def eval_exec_match(db, p_str, g_str, pred, gold):
+    """
+    return 1 if the values between prediction and gold are matching
+    in the corresponding index. Currently not support multiple col_unit(pairs).
+    """
+    db = os.path.join(ROOTPATH, db, db + ".sqlite")
+    conn = sqlite3.connect(db)
+    cursor = conn.cursor()
+    try:
+        cursor.execute(p_str)
+        p_res = cursor.fetchall()
+    except:
+        return False
+
+    cursor.execute(g_str)
+    q_res = cursor.fetchall()
+
+    def res_map(res, val_units):
+        rmap = {}
+        for idx, val_unit in enumerate(val_units):
+            key = tuple(val_unit[1]) if not val_unit[2] else (val_unit[0], tuple(val_unit[1]), tuple(val_unit[2]))
+            rmap[key] = [r[idx] for r in res]
+        return rmap
+
+    p_val_units = [unit[1] for unit in pred['select'][1]]
+    q_val_units = [unit[1] for unit in gold['select'][1]]
+    return res_map(p_res, p_val_units) == res_map(q_res, q_val_units)
 
 if __name__ == "__main__":
     import argparse
