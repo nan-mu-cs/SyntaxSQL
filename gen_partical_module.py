@@ -54,6 +54,19 @@ COND_OPS = {
     'or':1
 }
 
+TRAIN_COMPONENTS = ('multi_sql','keyword','col','op','agg','root_tem','des_asc','having','andor','value')
+COMPONENTS_DICT = {
+    'multi_sql':0,
+    'keyword':1,
+    'col':2,
+    'op':3,
+    'agg':4,
+    'root_tem':5,
+    'des_asc':6,
+    'having':7,
+    'andor':8,
+    'value':9
+}
 def convert_to_op_index(is_not,op):
     op = OLD_WHERE_OPS[op]
     if is_not and op == "in":
@@ -251,6 +264,13 @@ class AndOrPredictor:
             return self.history,COND_OPS[self.sql['where'][1]]
         return self.history,-1
 
+# class ValuePredictor:
+#     def __init__(self,sql,history,kw):
+#         self.sql = sql
+#         self.history = history
+#         self.kw = kw
+#     def generate_output(self):
+#         pass
 
 def parser_item_with_long_history(question_tokens, sql, table, history, dataset):
     table_schema = [
@@ -634,6 +654,304 @@ def get_table_dict(table_data_path):
     return table
 
 
+def parse_data_full_history(question_tokens, sql, table, history):
+    table_schema = [
+        table["table_names"],
+        table["column_names"],
+        table["column_types"]
+    ]
+    full_labels = []
+    masks = [COMPONENTS_DICT['multi_sql']]
+    stack = [("root", sql)]
+    with_join = False
+    fk_dict = defaultdict(list)
+    for fk in table["foreign_keys"]:
+        fk_dict[fk[0]].append(fk[1])
+        fk_dict[fk[1]].append(fk[0])
+    while len(stack) > 0:
+        node = stack.pop()
+        if node[0] == "root":
+            if len(masks) > 1:
+                masks.append(COMPONENTS_DICT['root_tem'])
+                full_labels.append(-1)
+            history, label, sql = MultiSqlPredictor(question_tokens, node[1], history).generate_output()
+            full_labels.append(SQL_OPS[label])
+            history.append(label)
+            if label == "none":
+                stack.append((label, sql))
+                masks.append(COMPONENTS_DICT['keyword'])
+            else:
+                node[1][label] = None
+                stack.append((label, node[1], sql))
+                masks.append(COMPONENTS_DICT['multi_sql'])
+                # if label != "none":
+                # stack.append(("none",node[1]))
+        elif node[0] in ('intersect', 'except', 'union'):
+            stack.append(("root", node[1]))
+            stack.append(("root", node[2]))
+        elif node[0] == "none":
+            with_join = len(node[1]["from"]["table_units"]) > 1
+            history, label, sql = KeyWordPredictor(question_tokens, node[1], history).generate_output()
+            # full_labels.append(label)
+
+            label_idxs = []
+            for item in label[1]:
+                if item in KW_DICT:
+                    label_idxs.append(KW_DICT[item])
+            label_idxs.sort()
+            full_labels.append(label_idxs)
+
+
+            # if "having" in label[1]:
+            #     stack.append(("having", node[1]))
+            if "orderBy" in label[1]:
+                stack.append(("orderBy", node[1]))
+            if "groupBy" in label[1]:
+                has_having = "having" in label[1]
+                # if "having" in label[1]:
+                #     dataset['having_dataset'].append({
+                #         "question_tokens": question_tokens,
+                #         "ts": table_schema,
+                #         "history": history[:],
+                #         "gt_col": node[1]["groupBy"][0][1],
+                #         "label": 1
+                #     })
+                # else:
+                #     dataset['having_dataset'].append({
+                #         "question_tokens": question_tokens,
+                #         "ts": table_schema,
+                #         "history": history[:],
+                #         "gt_col": node[1]["groupBy"][0][1],
+                #         "label": 0
+                #     })
+                stack.append(("groupBy", node[1],has_having))
+            if "where" in label[1]:
+                stack.append(("where", node[1]))
+            if "select" in label[1]:
+                stack.append(("select", node[1]))
+
+        elif node[0] in ("select", "having", "orderBy"):
+            # if node[0] != "orderBy":
+            history.append(node[0])
+            masks.append(COMPONENTS_DICT['col'])
+            # if node[0] == "orderBy":
+                # orderby_ret = DesAscPredictor(question_tokens, node[1], table, history).generate_output()
+                # if orderby_ret:
+                #     dataset['des_asc_dataset'].append({
+                #         "question_tokens": question_tokens,
+                #         "ts": table_schema,
+                #         "history": orderby_ret[0],
+                #         "gt_col": node[1]["orderBy"][1][0][1][1],
+                #         "label": ORDER_OPS[orderby_ret[1]]
+                #     })
+                    # history.append(orderby_ret[1])
+            col_ret = ColPredictor(question_tokens, node[1], table, history, node[0]).generate_output()
+            agg_col_dict = dict()
+            op_col_dict = dict()
+            for h, l, s in col_ret:
+                if l[0] == 0:
+                    print("Warning: predicted 0 columns!")
+                    continue
+                # dataset['col_dataset'].append({
+                #     "question_tokens": question_tokens,
+                #     "ts": table_schema,
+                #     "history": history[:],
+                #     "label": get_label_cols(with_join, fk_dict, l[1])
+                # })
+                full_labels.append(get_label_cols(with_join, fk_dict, l[1]))
+                for col, sql_item in zip(l[1], s):
+                    key = "{}{}{}".format(col[0][0], col[0][1], col[0][2])
+                    if key not in agg_col_dict:
+                        agg_col_dict[key] = [(sql_item, col[0])]
+                    else:
+                        agg_col_dict[key].append((sql_item, col[0]))
+                    if key not in op_col_dict:
+                        op_col_dict[key] = [(sql_item, col[0])]
+                    else:
+                        op_col_dict[key].append((sql_item, col[0]))
+                for key in agg_col_dict:
+                    stack.append(("col", node[0], agg_col_dict[key], op_col_dict[key]))
+        elif node[0] == "col":
+            # full_labels.append(node[2][-1])
+            history.append(node[2][0][1])
+            if node[1] == "where":
+                # stack.append(("value", node[2], "where"))
+                stack.append(("op", node[2], "where"))
+                masks.append(COMPONENTS_DICT['op'])
+            elif node[1] != "groupBy":
+                labels = []
+                for sql_item, col in node[2]:
+                    _, label = AggPredictor(question_tokens, sql_item, history, node[1]).generate_output()
+                    if label - 1 >= 0:
+                        labels.append(label - 1)
+
+                # print(node[2][0][1][2])
+                masks.append(COMPONENTS_DICT['agg'])
+                full_labels.append(labels[:min(len(labels), 3)])
+                # history.append(labels[:min(len(labels), 3)])
+                # dataset['agg_dataset'].append({
+                #     "question_tokens": question_tokens,
+                #     "ts": table_schema,
+                #     "history": history[:],
+                #     "gt_col": node[2][0][1][2],
+                #     "label": labels[:min(len(labels), 3)]
+                # })
+                # stack.append(("value",node[2],node[1]))
+                if node[1] == "having":
+                    # stack.append(("value", node[2], "having"))
+                    stack.append(("op", node[2], "having"))
+                if node[1] == "orderBy":
+                    stack.append(("des_asc", sql))
+                # if len(labels) == 0:
+                #     history.append("none")
+                # else:
+                if len(labels) > 0:
+                    history.append(AGG_OPS[labels[0] + 1])
+
+        elif node[0] == "des_asc":
+            orderby_ret = DesAscPredictor(question_tokens, node[1], table, history).generate_output()
+
+            if not orderby_ret:
+                continue
+            masks.append(COMPONENTS_DICT['des_asc'])
+            # print(node[1])
+            history.append(orderby_ret[1])
+            full_labels.append(orderby_ret[1])
+            if len(stack) > 0:
+                masks.append(-1)
+        elif node[0] == "value":
+            masks.append(COMPONENTS_DICT['value'])
+            val1 = node[1][3]
+            val2 = node[1][4]
+            if val2:
+                if len(stack) > 0:
+                    masks.append(-1)
+                    masks.append(-1)
+                full_labels.append(val1)
+                full_labels.append(val2)
+                history.append(val1)
+                history.append(val2)
+            else:
+                if len(stack) > 0:
+                    masks.append(-1)
+                full_labels.append(val1)
+                history.append(val1)
+
+        elif node[0] == "op":
+            # history.append(node[1][0][1])
+            labels = []
+            # if len(labels) > 2:
+            #     print(question_tokens)
+            # dataset['op_dataset'].append({
+            #     "question_tokens": question_tokens,
+            #     "ts": table_schema,
+            #     "history": history[:],
+            #     "gt_col": node[1][0][1][2],
+            #     "label": labels
+            # })
+
+
+            for sql_item, col in node[1]:
+                _, label, s = OpPredictor(question_tokens, sql_item, history).generate_output()
+                if label != -1:
+                    labels.append(label)
+                    history.append(NEW_WHERE_OPS[label])
+                masks.append(COMPONENTS_DICT['root_tem'])
+                if isinstance(s[0], dict):
+                    stack.append(("root", s[0]))
+                    full_labels.append(0)
+                    # history.append("root")
+                    # dataset['root_tem_dataset'].append({
+                    #     "question_tokens": question_tokens,
+                    #     "ts": table_schema,
+                    #     "history": history[:],
+                    #     "gt_col": node[1][0][1][2],
+                    #     "label": 0
+                    # })
+                else:
+                    stack.append(("value",sql_item))
+                    full_labels.append(0)
+                    # dataset['root_tem_dataset'].append({
+                    #     "question_tokens": question_tokens,
+                    #     "ts": table_schema,
+                    #     "history": history[:],
+                    #     "gt_col": node[1][0][1][2],
+                    #     "label": 1
+                    # })
+                    # history.append("terminal")
+            if len(labels) > 2:
+                print(question_tokens)
+            # dataset['op_dataset'][-1]["label"] = labels
+            full_labels.append(labels)
+        elif node[0] == "where":
+            history.append(node[0])
+            hist, label = AndOrPredictor(question_tokens, node[1], table, history).generate_output()
+            if label != -1:
+                masks.append(COMPONENTS_DICT['andor'])
+                full_labels.append(label)
+                # dataset['andor_dataset'].append({
+                #     "question_tokens": question_tokens,
+                #     "ts": table_schema,
+                #     "history": history[:],
+                #     "label": label
+                # })
+            col_ret = ColPredictor(question_tokens, node[1], table, history, "where").generate_output()
+            masks.append(COMPONENTS_DICT['col'])
+            op_col_dict = dict()
+            for h, l, s in col_ret:
+                if l[0] == 0:
+                    print("Warning: predicted 0 columns!")
+                    continue
+                # dataset['col_dataset'].append({
+                #     "question_tokens": question_tokens,
+                #     "ts": table_schema,
+                #     "history": history[:],
+                #     "label": get_label_cols(with_join, fk_dict, l[1])
+                # })
+                full_labels.append(get_label_cols(with_join, fk_dict, l[1]))
+                for col, sql_item in zip(l[1], s):
+                    key = "{}{}{}".format(col[0][0], col[0][1], col[0][2])
+                    if key not in op_col_dict:
+                        op_col_dict[key] = [(sql_item, col[0])]
+                    else:
+                        op_col_dict[key].append((sql_item, col[0]))
+                for key in op_col_dict:
+                    stack.append(("col", "where", op_col_dict[key]))
+        elif node[0] == "groupBy":
+
+            history.append(node[0])
+            col_ret = ColPredictor(question_tokens, node[1], table, history, node[0]).generate_output()
+            masks.append(COMPONENTS_DICT['col'])
+            # agg_col_dict = dict()
+            for h, l, s in col_ret:
+                if l[0] == 0:
+                    print("Warning: predicted 0 columns!")
+                    continue
+                # dataset['col_dataset'].append({
+                #     "question_tokens": question_tokens,
+                #     "ts": table_schema,
+                #     "history": history[:],
+                #     "label": get_label_cols(with_join, fk_dict, l[1])
+                # })
+                full_labels.append(get_label_cols(with_join, fk_dict, l[1]))
+                if node[2]:
+                    stack.append(("having", node[1]))
+                    full_labels.append(1)
+                    masks.append(COMPONENTS_DICT['having'])
+                else:
+                    full_labels.append(0)
+                    masks.append(COMPONENTS_DICT['having'])
+
+                # for col, sql_item in zip(l[1], s):
+                #     key = "{}{}{}".format(col[0][0], col[0][1], col[0][2])
+                #     if key not in agg_col_dict:
+                #         agg_col_dict[key] = [(sql_item, col[0])]
+                #     else:
+                #         agg_col_dict[key].append((sql_item, col[0]))
+                # for key in agg_col_dict:
+                #     stack.append(("col", node[0], agg_col_dict[key]))
+    return history,full_labels,masks
+
 def parse_data(data):
     dataset = {
         "multi_sql_dataset": [],
@@ -658,6 +976,66 @@ def parse_data(data):
         print("dataset:{} size:{}".format(key, len(dataset[key])))
         json.dump(dataset[key], open("./generated_data/{}_{}_{}.json".format(history_option,train_dev, key), "w"), indent=2)
 
+def replace_value(conditions,nl,mp):
+    for cond in conditions:
+        for i,value in enumerate(cond):
+            if i < 3:
+                continue
+            if not value or isinstance(value,dict):
+                continue
+            old_value = value
+            if isinstance(value,str):
+                if value[0] in ('\'','\"'):
+                    value = value[1:-1]
+                value = value.split()
+            else:
+                value = [value]
+            try:
+                new_val = 'VALUE_{}'.format(len(mp))
+                cond[i] = new_val
+                mp.append(old_value)
+                if isinstance(value[0],str):
+                    idx = nl.index(value[0])
+                else:
+                    idx = -1
+                    for i in range(len(nl)):
+                        if nl[i].isdigit() and (float(nl[i]) == value[0]):
+                            idx = i
+                            break
+                    if idx == -1:
+                        print(old_value)
+                        print(nl)
+                        continue
+                nl = nl[:idx] + [new_val] + nl[idx+len(value):]
+            except Exception:
+                print(old_value)
+                print(nl)
+                continue
+    return conditions,nl
 
+def replace_nl(sql,nl):
+    mp = []
+    sql["where"],nl = replace_value(sql["where"],nl,mp)
+    sql["having"],nl = replace_value(sql["having"],nl,mp)
+    d = {}
+    for i,val in enumerate(mp):
+        d["VALUE_{}".format(i)] = val
+    return d,sql,nl
+
+def parse_data_new_format(data):
+    dataset = []
+    table_dict = get_table_dict(table_data_path)
+    for item in data:
+        mp,sql,nl = replace_nl(item["sql"],item["question_toks"])
+        history,labels,masks = parse_data_full_history(nl, sql, table_dict[item["db_id"]], [])
+        dataset.append({
+            "history":history,
+            "label":labels,
+            "mask":masks,
+            "map":mp,
+            "nl":nl
+        })
+    json.dump(dataset,open("./generated_data/full_history_new_{}.json".format(train_dev), "w"), indent=2)
 if __name__ == '__main__':
-    parse_data(train_data)
+    # parse_data(train_data)
+    parse_data_new_format(train_data)
