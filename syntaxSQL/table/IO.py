@@ -154,7 +154,7 @@ def unlist_mask(mask_list):
             print("\nWarning: NOT expected length of the mask list greater than 2!")
             exit()
         
-    assert len(mask_nolist) = len(mask_inds)
+    assert len(mask_nolist) == len(mask_inds)
     
     return mask_nolist, mask_inds
 
