@@ -24,7 +24,6 @@ import json
 import sqlite3
 import traceback
 
-# sys.path.append("/data/projects/nl2sql/datasets")
 from process_sql import tokenize, get_schema, get_tables_with_alias, Schema, get_sql
 
 ROOTPATH = "./database"
@@ -80,14 +79,13 @@ def has_agg(unit):
 def accuracy(count, total):
     if count == total:
         return 1
-    # return float(count) / total
     return 0
+
 
 def recall(count, total):
     if count == total:
         return 1
     return 0
-    # return float(count) / total
 
 
 def F1(acc, rec):
@@ -97,18 +95,11 @@ def F1(acc, rec):
 
 
 def get_scores(count, pred_total, label_total):
-    # acc = accuracy(count, pred_total)
-    # rec = recall(count, label_total)
     if pred_total != label_total:
         return 0,0,0
     elif count == pred_total:
         return 1,1,1
     return 0,0,0
-        # else:
-            # acc = 0
-            # rec = 0
-    # f1 = F1(acc, rec)
-    # return acc, rec, f1
 
 
 def eval_sel(pred, label):
@@ -133,8 +124,6 @@ def eval_where(pred, label):
     pred_conds = [unit[:3] for unit in pred['where'][::2]]  # ignore value
     label_conds = [unit[:3] for unit in label['where'][::2]]  # ignore value
     label_wo_agg = [unit[2] for unit in label_conds]
-    # print(pred_conds)
-    # print(label_conds)
     pred_total = len(pred_conds)
     label_total = len(label_conds)
     cnt = 0
@@ -157,8 +146,6 @@ def eval_group(pred, label):
     cnt = 0
     pred_cols = [pred.split(".")[1] if "." in pred else pred for pred in pred_cols]
     label_cols = [label.split(".")[1] if "." in label else label for label in label_cols]
-    # print(pred_cols)
-    # print(label_cols)
     for col in pred_cols:
         if col in label_cols:
             cnt += 1
@@ -187,8 +174,6 @@ def eval_order(pred, label):
         pred_total = 1
     if len(label['orderBy']) > 0:
         label_total = 1
-    # print("pred:{}".format(pred))
-    # print("label:{}\n".format(label))
     if len(label['orderBy']) > 0 and pred['orderBy'] == label['orderBy'] and \
             ((pred['limit'] is None and label['limit'] is None) or (pred['limit'] is not None and label['limit'] is not None)):
         cnt = 1
@@ -196,31 +181,14 @@ def eval_order(pred, label):
 
 
 def eval_and_or(pred, label):
-    # pred_ao = pred['from']['conds'][1::2] + pred['where'][1::2] + pred['having'][1::2]
-    # label_ao = label['from']['conds'][1::2] + label['where'][1::2] + label['having'][1::2]
     pred_ao = pred['where'][1::2]
     label_ao = label['where'][1::2]
-    pred_total = len(pred_ao)
-    label_total = len(label_ao)
-    # print("pred:{}".format(pred_ao))
-    # print("gold:{}".format(label_ao))
-    cnt = 0
     pred_ao = set(pred_ao)
     label_ao = set(label_ao)
-    # print("pred:{}".format(pred_ao))
-    # print("gold:{}".format(label_ao))
+
     if pred_ao == label_ao:
         return 1,1,1
     return len(pred_ao),len(label_ao),0
-    # num_pred_a = len([token for token in pred_ao if token == 'and'])
-    # num_label_a = len([token for token in label_ao if token == 'and'])
-    # cnt += min(num_pred_a, num_label_a)
-    #
-    # num_pred_o = len([token for token in pred_ao if token=='or'])
-    # num_label_o = len([token for token in label_ao if token=='or'])
-    # cnt += min(num_pred_o, num_label_o)
-
-    # return label_total, pred_total, cnt
 
 
 def get_nestedSQL(sql):
@@ -645,12 +613,13 @@ def eval_exec_match(db, p_str, g_str, pred, gold):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pred_path', dest='pred_path', type=str)
+    parser.add_argument('--gold', dest='gold', type=str)
+    parser.add_argument('--pred', dest='pred', type=str)
     parser.add_argument('--etype', dest='etype', type=str)
     args = parser.parse_args()
 
-    gold = "/data/projects/nl2sql/datasets/data/gold.sql"
-    pred = args.pred_path
+    gold = args.gold
+    pred = args.pred
     etype = args.etype
 
     assert etype in ["all", "exec", "match"], "Unknown evaluation method"
