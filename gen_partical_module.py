@@ -47,6 +47,12 @@ KW_DICT = {
 ORDER_OPS = {
     'desc': 0,
     'asc': 1}
+ORDER_DICT = {
+    0:"asc_limit",
+    1:"asc",
+    2:"desc_limit",
+    3: "desc"
+}
 AGG_OPS = ('none','max', 'min', 'count', 'sum', 'avg')
 
 COND_OPS = {
@@ -661,7 +667,7 @@ def parse_data_full_history(question_tokens, sql, table, history):
         table["column_types"]
     ]
     full_labels = []
-    masks = [COMPONENTS_DICT['multi_sql']]
+    masks = [[COMPONENTS_DICT['multi_sql']]]
     stack = [("root", sql)]
     with_join = False
     fk_dict = defaultdict(list)
@@ -671,23 +677,29 @@ def parse_data_full_history(question_tokens, sql, table, history):
     while len(stack) > 0:
         node = stack.pop()
         if node[0] == "root":
-            if len(masks) > 1:
-                masks.append([COMPONENTS_DICT['root_tem']])
-                full_labels.append([-1])
-            history, label, sql = MultiSqlPredictor(question_tokens, node[1], history).generate_output()
+            if len(node) == 3 and node[2] == "multi":
+                masks.append([0])
+            # print(sql)
+            # print("root")
+            # if len(masks) > 1:
+                # masks.append([COMPONENTS_DICT['root_tem']])
+                # full_labels.append([-1])
+            history, label, ret_sql = MultiSqlPredictor(question_tokens, node[1], history).generate_output()
             full_labels.append([SQL_OPS[label]])
             history.append(label)
             if label == "none":
-                stack.append((label, sql))
+                stack.append((label, ret_sql))
                 masks.append([COMPONENTS_DICT['keyword']])
             else:
                 node[1][label] = None
-                stack.append((label, node[1], sql))
+                stack.append((label, ret_sql, node[1]))
                 masks.append([COMPONENTS_DICT['multi_sql']])
                 # if label != "none":
                 # stack.append(("none",node[1]))
         elif node[0] in ('intersect', 'except', 'union'):
-            stack.append(("root", node[1]))
+            full_labels.append([])
+            masks.append([-1])
+            stack.append(("root", node[1],"multi"))
             stack.append(("root", node[2]))
         elif node[0] == "none":
             with_join = len(node[1]["from"]["table_units"]) > 1
@@ -701,7 +713,9 @@ def parse_data_full_history(question_tokens, sql, table, history):
             label_idxs.sort()
             full_labels.append([label_idxs])
 
-
+            # if "orderBy" in label[1] and "having" in label[1]:
+            #     print("Aaaaa!!!!!!!!!")
+            #     print(sql)
             # if "having" in label[1]:
             #     stack.append(("having", node[1]))
             if "orderBy" in label[1]:
@@ -786,12 +800,12 @@ def parse_data_full_history(question_tokens, sql, table, history):
                         labels.append(label - 1)
 
                 # print(node[2][0][1][2])
-
+                if node[1] == "orderBy":
+                    stack.append(("des_asc", sql))
+                    continue
                 masks.append([COMPONENTS_DICT['agg']])
                 full_labels.append([labels[:min(len(labels), 3)]])
-                if len(stack) == 0 and node[1] != "having":
-                    masks.append([-1])
-                    full_labels.append([])
+
                 # history.append(labels[:min(len(labels), 3)])
                 # dataset['agg_dataset'].append({
                 #     "question_tokens": question_tokens,
@@ -804,13 +818,18 @@ def parse_data_full_history(question_tokens, sql, table, history):
                 if node[1] == "having":
                     # stack.append(("value", node[2], "having"))
                     stack.append(("op", node[2], "having"))
-                if node[1] == "orderBy":
-                    stack.append(("des_asc", sql))
+
                 # if len(labels) == 0:
                 #     history.append("none")
                 # else:
-                if len(labels) > 0:
-                    history.append(AGG_OPS[labels[0] + 1])
+                if len(labels) == 0 and node[1] == "having":
+                    history.append("none")
+                for v in labels:
+                    history.append(AGG_OPS[v + 1])
+                    if node[1] != "having":
+                        masks.append([-1])
+                        full_labels.append([])
+                    # history.append([AGG_OPS[labels[i] + 1] for i in range(len(labels))])
 
         elif node[0] == "des_asc":
             orderby_ret = DesAscPredictor(question_tokens, node[1], table, history).generate_output()
@@ -819,27 +838,30 @@ def parse_data_full_history(question_tokens, sql, table, history):
                 continue
             masks.append([COMPONENTS_DICT['des_asc']])
             # print(node[1])
-            history.append(orderby_ret[1])
+            history.append(ORDER_DICT[orderby_ret[1]])
             full_labels.append([orderby_ret[1]])
-            if len(stack) > 0:
-                masks.append([-1])
+            masks.append([-1])
+            full_labels.append([])
         elif node[0] == "value":
-            masks.append([COMPONENTS_DICT['value'],COMPONENTS_DICT['root_tem']])
+            history.append(node[2])
+            masks.append([COMPONENTS_DICT['root_tem'],COMPONENTS_DICT['value']])
             val1 = node[1][3]
             val2 = node[1][4]
-            if val2:
-                if len(stack) > 0:
-                    masks.append([-1])
-                    # masks.append(-1)
-                full_labels.append([1,[val1,val2]])
-                # full_labels.append(val2)
-                history.append([val1,val2])
-                # history.append(val2)
-            else:
-                if len(stack) > 0:
-                    masks.append([-1])
-                full_labels.append([1,[val1]])
-                history.append([val1])
+            full_labels.append([1, [val1, val2]])
+            history.append([val1, val2])
+            masks.append([-1])
+            full_labels.append([])
+            # if val2:
+            #     # if len(stack) > 0:
+            #
+            #         # masks.append(-1)
+            #
+            #     # history.append(val2)
+            # else:
+            #     # if len(stack) > 0:
+            #     masks.append([-1])
+            #     full_labels.append([1,[val1]])
+            #     history.append([val1])
 
         elif node[0] == "op":
             # history.append(node[1][0][1])
@@ -859,13 +881,12 @@ def parse_data_full_history(question_tokens, sql, table, history):
                 _, label, s = OpPredictor(question_tokens, sql_item, history).generate_output()
                 if label != -1:
                     labels.append(label)
-                    history.append(NEW_WHERE_OPS[label])
 
                 # masks.append(COMPONENTS_DICT['root_tem'])
                 if isinstance(s[0], dict):
                     stack.append(("root", s[0]))
-                    masks.append([COMPONENTS_DICT['root_tem']])
-                    full_labels.append([0,[]])
+                    history.append(NEW_WHERE_OPS[label])
+                    # masks.append([COMPONENTS_DICT['op']])
                     # history.append("root")
                     # dataset['root_tem_dataset'].append({
                     #     "question_tokens": question_tokens,
@@ -875,7 +896,8 @@ def parse_data_full_history(question_tokens, sql, table, history):
                     #     "label": 0
                     # })
                 else:
-                    stack.append(("value",sql_item))
+                    stack.append(("value",sql_item,NEW_WHERE_OPS[label]))
+
                     # full_labels.append(0)
                     # dataset['root_tem_dataset'].append({
                     #     "question_tokens": question_tokens,
@@ -889,8 +911,13 @@ def parse_data_full_history(question_tokens, sql, table, history):
                 print(question_tokens)
             # dataset['op_dataset'][-1]["label"] = labels
             # full_labels.append(labels)
+            # if stack[-1][0] == "value":
             masks.append([COMPONENTS_DICT['op']])
             full_labels.append([labels])
+            if stack[-1][0] == "root":
+                full_labels.append([0])
+                masks.append([COMPONENTS_DICT['root_tem']])
+                masks.append([COMPONENTS_DICT['multi_sql']])
         elif node[0] == "where":
             history.append(node[0])
             hist, andor_label = AndOrPredictor(question_tokens, node[1], table, history).generate_output()
@@ -904,7 +931,7 @@ def parse_data_full_history(question_tokens, sql, table, history):
                 #     "label": label
                 # })
             col_ret = ColPredictor(question_tokens, node[1], table, history, "where").generate_output()
-            masks.append([COMPONENTS_DICT['col']])
+            # masks.append([COMPONENTS_DICT['col']])
             op_col_dict = dict()
             for h, l, s in col_ret:
                 if l[0] == 0:
@@ -948,6 +975,7 @@ def parse_data_full_history(question_tokens, sql, table, history):
                 #     "history": history[:],
                 #     "label": get_label_cols(with_join, fk_dict, l[1])
                 # })
+                history.append(l[1][0][0])
                 full_labels.append([get_label_cols(with_join, fk_dict, l[1])])
                 if node[2]:
                     stack.append(("having", node[1]))
