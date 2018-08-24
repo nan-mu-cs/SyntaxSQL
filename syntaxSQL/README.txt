@@ -1,4 +1,4 @@
-python preprocess.py -root_dir ../data_model/ -dataset conala -src_words_min_frequency 2 -tgt_words_min_frequency 2
+python preprocess.py -root_dir ../data_model/ -dataset syntaxSQL -src_words_min_frequency 2 -tgt_words_min_frequency 2
 
 
 CUDA_VISIBLE_DEVICES=4 python train.py -root_dir ../data_model/ -dataset conala -rnn_size 300 -word_vec_size 250 -decoder_input_size 200 -layers 1 -start_checkpoint_at 30 -learning_rate 0.002 -epochs 100 -global_attention "dot" -attn_hidden 0 -dropout 0.1 -dropout_i 0.1 -lock_dropout -copy_prb hidden
@@ -7,6 +7,9 @@ CUDA_VISIBLE_DEVICES=6 python evaluate.py -root_dir ../data_model/ -dataset cona
 
 
 CUDA_VISIBLE_DEVICES=6 python evaluate.py -root_dir ../data_model/ -dataset conala -split test -model_path "../data_model/conala/dev_best.pt"
+
+
+CUDA_VISIBLE_DEVICES=5 python train.py -root_dir ../data_model/ -dataset syntaxSQL -start_checkpoint_at 30 -split_type "incell" -epochs 50 -global_attention "general" -learning_rate 0.002 -fix_word_vecs -dropout 0.1 -score_size 64 -attn_hidden 64 -rnn_size 250 -qt_co_attention -lock_dropout
 
 #################
 # initial results

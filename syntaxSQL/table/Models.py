@@ -10,6 +10,7 @@ import table
 from table.Utils import aeq, sort_for_pack
 from table.modules.embed_regularize import embedded_dropout
 from table.modules.cross_entropy_smooth import onehot
+from table.modules.QtGlobalAttention import QtGlobalAttention
 from table.Utils import argmax
 
 
@@ -316,7 +317,7 @@ class RNNDecoderState(DecoderState):
         
 class QtCoAttention(nn.Module):
     def __init__(self, rnn_type, bidirectional, num_layers, hidden_size, dropout, weight_dropout, attn_type, attn_hidden):
-        super(CoAttention, self).__init__()
+        super(QtCoAttention, self).__init__()
 
         num_directions = 2 if bidirectional else 1
         self.hidden_size = hidden_size
@@ -324,7 +325,7 @@ class QtCoAttention(nn.Module):
 
         self.rnn = _build_rnn(rnn_type, 2 * hidden_size, hidden_size //
                               num_directions, num_layers, dropout, weight_dropout, bidirectional)
-        self.attn = table.modules.GlobalAttention(
+        self.attn = QtGlobalAttention(
             hidden_size, False, attn_type=attn_type, attn_hidden=attn_hidden)
 
     def forward(self, q_all, lengths, tbl_enc, tbl_mask):
@@ -519,25 +520,24 @@ class CopyGenerator(nn.Module):
 
 
 class ParserModel(nn.Module):
-    def __init__(self, q_encoder, tbl_encoder, qt_co_attention, lay_decoder, lay_classifier, q_co_attention, lay_co_attention, predictors, model_opt):
+    def __init__(self, q_encoder, tbl_encoder, qt_co_attention, sql_decoder, sql_classifier, q_co_attention, sql_co_attention, predictors, model_opt):
         super(ParserModel, self).__init__()
         
         self.q_encoder = q_encoder
         self.tbl_encoder = tbl_encoder
         self.qt_co_attention = qt_co_attention
-        self.lay_decoder = lay_decoder
-        self.lay_classifier = lay_classifier
+        self.sql_decoder = sql_decoder
+        self.sql_classifier = sql_classifier
         self.q_co_attention = q_co_attention
-        self.lay_co_attention = lay_co_attention
+        self.sql_co_attention = sql_co_attention
         self.predictors = predictors
         self.opt = model_opt
         
-
     def enc(self, q, q_len, ent, tbl, tbl_len, tbl_split, tbl_mask):
         q_enc, q_all = self.q_encoder(q, lengths=q_len, ent=ent)
         tbl_enc = self.tbl_encoder(tbl, tbl_len, tbl_split)
-        if self.co_attention is not None:
-            q_enc, q_all = self.co_attention(q_all, q_len, tbl_enc, tbl_mask)
+        if self.qt_co_attention is not None:
+            q_enc, q_all = self.qt_co_attention(q_all, q_len, tbl_enc, tbl_mask)
         # (num_layers * num_directions, batch, hidden_size)
         q_ht, q_ct = q_enc
         batch_size = q_ht.size(1)
@@ -555,7 +555,7 @@ class ParserModel(nn.Module):
         return q_ht
     
     def run_predictors(self, predictors, feat_qhs, feat_qhstbl, tbl_mask): # TODO: lay_len -> lay_mask
-        mulit_sql, keyword, col, op, agg, root_tem, des_asc, having, andor = predictors
+        mulit_sql, keyword, col, op, agg, root_tem, des_asc, having, andor, value = predictors
         mulit_sql_score = mulit_sql(feat_qhs)
         keyword_score = keyword(feat_qhs)
         col_score = col(feat_qhs, feat_qhstbl, tbl_mask) # col_num_score: (B, sql_len, 3), col_score: (B, sql_len, max_col_len)
@@ -565,9 +565,10 @@ class ParserModel(nn.Module):
         des_asc_score = des_asc(feat_qhs)
         having_score = having(feat_qhs)
         andor_score = andor(feat_qhs)
+        value_score = None # TODO: to add
         
         scores = [mulit_sql_score, keyword_score, col_score, op_score, agg_score,
-                  root_tem_score, des_asc_score, having_score, andor_score]
+                  root_tem_score, des_asc_score, having_score, andor_score, value_score]
         
         return scores
 
@@ -593,32 +594,35 @@ class ParserModel(nn.Module):
                              concat_c, attn_scores, copy_to_ext, copy_to_tgt)
         return dec_out, attn_scores
 
-    def forward(self, q, q_len, ent, tbl, tbl_len, tbl_split, tbl_mask, lay, lay_len):
+    def forward(self, q, q_len, src_type, tbl, tbl_len, tbl_split, tbl_mask, sql, sql_len):
         # encoding
         q_enc, q_all, tbl_enc, q_ht, batch_size = self.enc(
-            q, q_len, ent, tbl, tbl_len, tbl_split, tbl_mask)
+            q, q_len, src_type, tbl, tbl_len, tbl_split, tbl_mask)
         
-        # layout decoding
-        dec_in_lay = lay[:-1]
-        lay_out, lay_attn_scores, dec_all = self.run_decoder(
-            self.lay_decoder, self.lay_classifier, q, q_all, q_enc, dec_in_lay, lay_parent_index)
+        # sql history decoding
+        sql_parent_index = None
+        dec_in_sql = sql[:-1]
+        sql_out, sql_attn_scores, dec_all = self.run_decoder( # TODO: double check: q, q_all, q_enc,
+            self.sql_decoder, self.sql_classifier, q, q_all, q_enc, dec_in_sql, sql_parent_index)
 
-        # q_enc: (batch, rnn_size)
+        # q_ht: (batch, rnn_size)
         # tbl_enc: (num_table_header, batch, rnn_size)
         # dec_all: (sql_len, batch, rnn_size)
-        # q_enc_expand: (sql_len, batch, rnn_size)
-        q_enc_expand = q_enc.unsqueeze(0).expand(dec_all.size(0), dec_all.size(1), q_enc.size(1))
-        # feat: (batch, sql_len, rnn_size*2)
-        feat_qhs = torch.cat((q_enc_expand, dec_all), 2).transpose(0, 1)
+        # q_ht_expand: (sql_len, batch, rnn_size)
+        q_ht_expand = q_ht.unsqueeze(0).expand(dec_all.size(0), dec_all.size(1), q_ht.size(1))
+        # feat: (batch, sql_len, rnn_size*2)        
+        feat_qhs = torch.cat((q_ht_expand, dec_all), 2).transpose(0, 1)
         # feat_qhs_expand: (batch, sql_len, num_table_header, rnn_size*2)
-        feat_qhs_expand = feat_qhs.unsqueenze(2).expand(
+        feat_qhs_expand = feat_qhs.unsqueeze(2).expand(
             feat_qhs.size(0), feat_qhs.size(1), tbl_enc.size(0), feat_qhs.size(2))
         # tbl_enc_expand: (batch, sql_len, num_table_header, rnn_size)
-        tbl_enc_expand = tbl_enc.transpose(0, 1).unsqueenze(1).expand(
+        tbl_enc_expand = tbl_enc.transpose(0, 1).unsqueeze(1).expand(
             feat_qhs.size(0), feat_qhs.size(1), tbl_enc.size(0), tbl_enc.size(2))
         # feat_qhstbl: (batch, sql_len, num_table_header, rnn_size*3)
-        feat_qhstbl = torch.cat((feat_qhs_expand, tbl_enc), 3)
+        print("feat_qhs_expand: ", feat_qhs_expand.size())
+        print("tbl_enc_expand: ", tbl_enc_expand.size())
+        feat_qhstbl = torch.cat((feat_qhs_expand, tbl_enc_expand), 3)
         
         scores = self.run_predictors(self.predictors, feat_qhs, feat_qhstbl, tbl_mask)
         
-        return lay_out, scores, self.predictors
+        return sql_out, scores, self.predictors

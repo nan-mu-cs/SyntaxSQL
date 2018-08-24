@@ -30,9 +30,9 @@ opts.preprocess_opts(parser)
 opt = parser.parse_args()
 set_seed(opt.seed)
 
-opt.train_anno = os.path.join(opt.root_dir, opt.dataset, 'train.json')
-opt.valid_anno = os.path.join(opt.root_dir, opt.dataset, 'dev.json')
-opt.test_anno = os.path.join(opt.root_dir, opt.dataset, 'test.json')
+opt.train_anno = os.path.join(opt.root_dir, opt.dataset, 'dev_init.json')
+opt.valid_anno = os.path.join(opt.root_dir, opt.dataset, 'dev_init.json')
+opt.test_anno = os.path.join(opt.root_dir, opt.dataset, 'dev_init.json')
 opt.save_data = os.path.join(opt.root_dir, opt.dataset)
 
 

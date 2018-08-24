@@ -140,11 +140,19 @@ class OrderedIterator(torchtext.data.Iterator):
                 self.batches.append(sorted(b, key=self.sort_key))
 
 
-def unlist_mask(mask_list):
+def unlist_mask_label(mask_list, label_list):
+    label_nolist = []
+    label_nums = []
     mask_nolist = []
     mask_inds = []
-    for ml in mask_list:
-        if len(ml) == 1:
+    
+    for ll, ml in zip(label_list, mask_list):
+        # for column label is [[[14, 12], 4]]
+        if len(ml) == 1 and ml[0] == 2 and any(isinstance(i, list) for el in ll for i in el):
+            mask_nolist.append(ml[0])
+            col_num = sum([len(i) if isinstance(i, list) else 1 for el in ll for i in el])
+            mask_inds.append(col_num)
+        elif len(ml) == 1:
             mask_nolist.append(ml[0])
             mask_inds.append(1)
         elif len(ml) == 2:
@@ -154,18 +162,34 @@ def unlist_mask(mask_list):
             print("\nWarning: NOT expected length of the mask list greater than 2!")
             exit()
         
-    assert len(mask_nolist) == len(mask_inds)
-    
-    return mask_nolist, mask_inds
-
-
-def unlist_label(label_list):
-    label_nolist = []
-    label_nums = []
-    for ll in label_list:
-        if not isinstance(ll[0], list):
+        # [0], [[0]], [[[14, 12], 4]], [[]], [], [[21], []]
+        if len(ll) == 0: # []
+            #label_nolist.extend(ll)
+            label_nums.append(0)
+        elif not isinstance(ll[0], list) and len(ll) == 1: # [0]
             label_nolist.extend(ll)
-            label_nums.append(len(ll))
+            assert len(ll)  == 1
+            label_nums.append(1)
+        elif not isinstance(ll[0], list) and isinstance(ll[1], list): # [1, ['VALUE_0', None]]
+            assert len(ll) == 2
+            label_nolist.append(ll[0])
+            label_nums.append(1)
+            label_nolist.extend(ll[1]) # TODO: change [1, ['VALUE_0', None]]
+            label_nums.append(len(ll[1]))
+        elif ml[0] == 2 and any(isinstance(i, list) for el in ll for i in el): #for [[[14, 12], 4]]
+            col_label = []
+            for el in ll:
+                for ii in el:
+                    if isinstance(ii, list):
+                        col_label.extend(ii)
+                    else:
+                        col_label.append(ii)
+            label_nolist.extend(col_label)
+            col_nums = [len(i) if isinstance(i, list) else 1 for el in ll for i in el]
+            label_nums.extend(col_nums)
+        elif len(ll) == 1: # [[0]] or [[1, 3]]
+            label_nolist.extend(ll[0])
+            label_nums.append(len(ll[0]))
         else:
             assert len(ll) == 2
             label_nolist.extend(ll[0])
@@ -174,16 +198,21 @@ def unlist_label(label_list):
             label_nums.append(len(ll[1]))
             
     assert sum(label_nums) == len(label_nolist)
+    assert len(mask_nolist) == len(mask_inds)
     
-    return label_nolist, label_nums
+    return mask_nolist, mask_inds, label_nolist, label_nums
 
 
 def read_anno_json(anno_path, opt):
-    with codecs.open(anno_path, "r", "utf-8") as corpus_file:
-        js_list = [json.loads(line) for line in corpus_file]
+    with open(anno_path, "r") as corpus_file:
+        js_list = json.load(corpus_file)
         for line in js_list:
-            line["mask_list"], line["mask_inds"] = unlist_mask(line["module_mask"])
-            line["label_list"], line["label_nums"] = unlist_label(line["module_label"])
+            mask_list, mask_inds, label_list, label_nums = unlist_mask_label(line["module_mask"], line["module_label"])
+            line["mask_list"] = mask_list
+            line["mask_inds"] = mask_inds
+            line["label_list"] = label_list
+            line["label_nums"] = label_nums
+            
     return js_list
 
 
@@ -212,6 +241,12 @@ class TableDataset(torchtext.data.Dataset):
                 
         tbl_data = self._read_annotated_file(opt, js_list, 'tbl', filter_ex)
         tbl_examples = self._construct_examples(tbl_data, 'tbl')
+        
+        col_ind_data = self._read_annotated_file(opt, js_list, 'col_inds', filter_ex)
+        col_ind_examples = self._construct_examples(col_ind_data, 'col_inds')
+        
+        col_mask_data = self._read_annotated_file(opt, js_list, 'col_mask', filter_ex)
+        col_mask_examples = self._construct_examples(col_mask_data, 'col_mask')
         
         tbl_split_data = self._read_annotated_file(
             opt, js_list, 'tbl_split', filter_ex)
@@ -244,7 +279,8 @@ class TableDataset(torchtext.data.Dataset):
 
         # examples: one for each src line or (src, tgt) line pair.
         examples = [join_dicts(*it) for it in zip(src_examples, tbl_examples, tbl_split_examples, tbl_mask_examples,
-                        sql_examples, mod_mask_examples, mask_ind_examples, mod_label_examples, label_num_examples)]
+                        sql_examples, mod_mask_examples, mask_ind_examples, mod_label_examples, label_num_examples,
+                                                 col_mask_examples, col_ind_examples)]
         # the examples should not contain None
         len_before_filter = len(examples)
         examples = list(filter(lambda x: all(
@@ -278,7 +314,7 @@ class TableDataset(torchtext.data.Dataset):
         path: location of a src or tgt file
         truncate: maximum sequence length (0 for unlimited)
         """
-        if field in ('src', 'sql_history'):
+        if field in ('src', 'sql_history', 'mask_list', 'mask_inds', 'label_list', 'label_nums', 'col_inds', 'col_mask'):
             lines = (line[field] for line in js_list) # TODO: for question tokens and sql_history lower and tokenized
         elif field in ('tbl',):
             def _tbl(col_list):
@@ -288,7 +324,7 @@ class TableDataset(torchtext.data.Dataset):
                     ['\t'.join(col) for col in col_list]).strip().split('\t'))
                 tk_list.append(SPLIT_WORD)
                 return tk_list
-            lines = (_tbl(line["ts"]) for line in js_list) #TODO: a list of table schemas lower and tokenized
+            lines = (_tbl(line["table_schema"]) for line in js_list) #TODO: a list of table schemas lower and tokenized
         elif field in ('tbl_split',):
             def _cum_length_for_split(col_list):
                 len_list = [len(col) for col in col_list]
@@ -296,17 +332,9 @@ class TableDataset(torchtext.data.Dataset):
                 for i in range(len(len_list)):
                     r.append(r[-1] + len_list[i] + 1)
                 return r
-            lines = (_cum_length_for_split(line["ts"]) for line in js_list) #TODO: a list of table schemas
+            lines = (_cum_length_for_split(line["table_schema"]) for line in js_list) #TODO: a list of table schemas
         elif field in ('tbl_mask',):
-            lines = ([0 for col in line['ts']] for line in js_list) #TODO: a list of table schemas
-        elif field in ('mask_list',):
-            lines = (line[field] for line in js_list)
-        elif field in ('mask_inds',):
-            lines = (line[field] for line in js_list)
-        elif field in ('label_list',):
-            lines = (line[field] for line in js_list)
-        elif field in ('label_nums',):
-            lines = (line[field] for line in js_list)
+            lines = ([0 for col in line['table_schema']] for line in js_list) #TODO: a list of table schemas
         else:
             raise NotImplementedError
         for line in lines:
@@ -359,14 +387,18 @@ class TableDataset(torchtext.data.Dataset):
             use_vocab=False, tensor_type=torch.ByteTensor, batch_first=True, pad_token=1)
         fields["sql_history"] = torchtext.data.Field(
             init_token=BOS_WORD, include_lengths=True, eos_token=EOS_WORD, pad_token=PAD_WORD)
-        fields["mask_list"] = torchtext.data.Field(
+        fields["col_inds"] = torchtext.data.Field(
             use_vocab=False,  pad_token=-1)
+        fields["col_mask"] = torchtext.data.Field(
+            use_vocab=False,  pad_token=0)
+        fields["mask_list"] = torchtext.data.Field(
+            use_vocab=False,  pad_token=-2)
         fields["mask_inds"] = torchtext.data.Field(
-            use_vocab=False, pad_token=-1)
+            use_vocab=False, pad_token=-2)
         fields["label_list"] = torchtext.data.Field(
-            use_vocab=False, pad_token=-1)
+            use_vocab=False, pad_token=-2)
         fields["label_nums"] = torchtext.data.Field(
-            use_vocab=False, pad_token=-1)
+            use_vocab=False, pad_token=-2)
         fields["indices"] = torchtext.data.Field(
             use_vocab=False, sequential=False)
         return fields

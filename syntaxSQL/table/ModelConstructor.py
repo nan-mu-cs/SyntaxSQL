@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import table
 import table.Models
 import table.modules
-from table.Models import ParserModel, RNNEncoder, TableRNNEncoder, SeqDecoder, LayCoAttention, QCoAttention, CopyGenerator
+from table.Models import ParserModel, RNNEncoder, TableRNNEncoder, SeqDecoder, LayCoAttention, QCoAttention, CopyGenerator, QtCoAttention
 import torchtext.vocab
 from table.modules.Embeddings import PartUpdateEmbedding
 from table.Predictors import AggPredictor, AndOrPredictor, DesAscLimitPredictor, HavingPredictor, KeyWordPredictor, MultiSqlPredictor, OpPredictor, RootTeminalPredictor, ColPredictor
@@ -83,9 +83,9 @@ def make_encoder(opt, embeddings, ent_embedding=None):
     return RNNEncoder(opt.rnn_type, opt.brnn, opt.enc_layers, opt.rnn_size, opt.dropout, opt.lock_dropout, opt.weight_dropout, embeddings, ent_embedding)
 
 
-def make_table_encoder(opt, embeddings):
+def make_table_encoder(opt, embeddings, ent_embedding=None):
     # "rnn" or "brnn"
-    return TableRNNEncoder(make_encoder(opt, embeddings), opt.split_type, opt.merge_type)
+    return TableRNNEncoder(make_encoder(opt, embeddings, ent_embedding), opt.split_type, opt.merge_type)
 
 
 def make_layout_encoder(opt, embeddings):
@@ -102,8 +102,9 @@ def make_predictors(opt):
     op = OpPredictor(2 * opt.rnn_size, opt.score_size, opt.dropout)
     root_tem = RootTeminalPredictor(2 * opt.rnn_size, opt.score_size, opt.dropout)
     col = ColPredictor(3 * opt.rnn_size, opt.score_size, opt.dropout)
+    value = None # TODO: to be added
     
-    predictors = [mulit_sql, keyword, col, op, agg, root_tem, des_asc, having, andor]
+    predictors = [mulit_sql, keyword, col, op, agg, root_tem, des_asc, having, andor, value]
     
     return predictors
 
@@ -120,8 +121,8 @@ def make_q_co_attention(opt):
     return None
 
 
-def make_lay_co_attention(opt):
-    if opt.lay_co_attention:
+def make_sql_co_attention(opt):
+    if opt.sql_co_attention:
         return LayCoAttention(opt.rnn_type, opt.brnn, opt.enc_layers, opt.decoder_input_size, opt.rnn_size, opt.dropout, opt.weight_dropout, 'mlp', opt.attn_hidden)
     return None
 
@@ -154,35 +155,43 @@ def make_base_model(model_opt, fields, checkpoint=None):
     # embedding
     w_embeddings = make_word_embeddings(model_opt, fields["src"].vocab, fields)
 
-    if model_opt.ent_vec_size > 0:
-        ent_embedding = make_embeddings(
-            fields["ent"].vocab, model_opt.ent_vec_size) # TODO: add column types and double check ! = -> !=
+    if model_opt.src_type_vec_size > 0:
+        src_type_embedding = make_embeddings(
+            fields["src_type"].vocab, model_opt.src_type_vec_size) # TODO: add column types and double check ! = -> !=
     else:
-        ent_embedding = None
+        src_type_embedding = None
 
     # Make question encoder.
-    q_encoder = make_encoder(model_opt, w_embeddings, ent_embedding)
+    q_encoder = make_encoder(model_opt, w_embeddings, src_type_embedding)
+    
+    if model_opt.col_type_vec_size > 0:
+        col_type_embedding = make_embeddings(
+            fields["col_type"].vocab, model_opt.col_type_vec_size) # TODO: add column types and double check ! = -> !=
+    else:
+        col_type_embedding = None
+        
+    # TODO: col_type encoder
+        
     # Make table encoder.
-    tbl_encoder = make_table_encoder(model_opt, w_embeddings)
+    tbl_encoder = make_table_encoder(model_opt, w_embeddings, col_type_embedding)
     
     qt_co_attention = make_qt_co_attention(model_opt)
 
-    # TODO: add more predictors
+    # TODO: add value copy predictor and modify col/kw modules' loss based on michi
     predictors = make_predictors(model_opt)
 
-    # Make layout decoder models.
-    lay_field = 'sql_history'
-    lay_embeddings = make_embeddings(
-        fields[lay_field].vocab, model_opt.decoder_input_size)
-    lay_decoder, lay_classifier = make_decoder(
-        model_opt, fields, lay_field, lay_embeddings, model_opt.decoder_input_size)
+    # Make sql history decoder models.
+    sql_embeddings = make_embeddings(
+        fields['sql_history'].vocab, model_opt.decoder_input_size)
+    sql_decoder, sql_classifier = make_decoder(
+        model_opt, fields, 'sql_history', sql_embeddings, model_opt.decoder_input_size)
 
     q_co_attention = make_q_co_attention(model_opt)
-    lay_co_attention = make_lay_co_attention(model_opt)
+    sql_co_attention = make_sql_co_attention(model_opt)
 
     # Make ParserModel
-    model = ParserModel(q_encoder, tbl_encoder, qt_co_attention, lay_decoder, lay_classifier,
-                        q_co_attention, lay_co_attention, predictors, model_opt)
+    model = ParserModel(q_encoder, tbl_encoder, qt_co_attention, sql_decoder, sql_classifier,
+                        q_co_attention, sql_co_attention, predictors, model_opt)
 
     if checkpoint is not None:
         print('Loading model')

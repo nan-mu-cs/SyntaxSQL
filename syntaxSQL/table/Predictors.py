@@ -332,6 +332,7 @@ class MultiSqlPredictor(nn.Module):
         self.sigm = nn.Sigmoid()
 
     def forward(self, q_hs):
+        print("q_hs: ", q_hs)
         # mulit_score: (B, max_sql_hs_len, 4)
         mulit_score = self.multi_out(q_hs)
 
@@ -489,11 +490,11 @@ class RootTeminalPredictor(nn.Module):
 
 class ColPredictor(nn.Module):
     def __init__(self, input_size, score_size, dropout):
-        super(MatchScorer, self).__init__()
+        super(ColPredictor, self).__init__()
         
         self.col_num_out = nn.Sequential(
             nn.Dropout(dropout),
-            nn.Linear(input_size*2/3, score_size),
+            nn.Linear(int(input_size*2/3), score_size),
             nn.Tanh(),
             nn.Linear(score_size, 3)) # for num of cols: 1-3
         

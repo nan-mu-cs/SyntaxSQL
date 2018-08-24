@@ -90,3 +90,34 @@ ORDER BY count(*) DESC LIMIT 1
 
 GROUP BY T2.painterID HAVING count(*)  >=  2
 'groupBy': [(0 #index of AGG_OPS#, '__paintings.painterid__', False #is distinct#)], 'having': [(False, 5, (0, (3, '__all__', False), None), 2.0, None)]
+                    
+COMPONENTS_DICT = {
+    'multi_sql':0,
+    'keyword':1,
+    'col':2,
+    'op':3,
+    'agg':4,
+    'root_tem':5,
+    'des_asc':6,
+    'having':7,
+    'andor':8,
+    'value':9
+}
+                    
+                    query  :  SELECT T1.Model FROM CAR_NAMES AS T1 JOIN CARS_DATA AS T2 ON T1.MakeId  =  T2.Id ORDER BY T2.horsepower ASC LIMIT 1;
+history:  ['root', 'none', 'select', ('car names', 'model', 14), 'orderBy', ('cars data', 'horsepower', 20), 'asc_limit']
+masks   :  [[0], [1], [2], [4], [2], [6], [-1]]
+label  :  [[0], [[2]], [[[14, 12]]], [[]], [[20]], [0], []]
+                   
+                    # 'root', 'intersect', 'root' -> [0], [0], [-1]
+query  :  SELECT T2.name ,  T2.location FROM concert AS T1 JOIN stadium AS T2 ON T1.stadium_id  =  T2.stadium_id WHERE T1.Year  =  2014 INTERSECT SELECT T2.name ,  T2.location FROM concert AS T1 JOIN stadium AS T2 ON T1.stadium_id  =  T2.stadium_id WHERE T1.Year  =  2015
+history:  ['root', 'intersect', 'root', 'none', 'select', ('stadium', 'location', 2), ('stadium', 'name', 3), 'where', ('concert', 'year', 19), '=', ['VALUE_0', None], 'root', 'none', 'select', ('stadium', 'location', 2), ('stadium', 'name', 3), 'where', ('concert', 'year', 19), '=', [2015.0, None]]
+masks   :  [[0], [0], [-1], [1], [2], [4], [4], [2, 8], [3], [5, 9], [-1], [0], [1], [2], [4], [4], [2, 8], [3], [5, 9], [-1]]
+label  :  [[1], [], [0], [[0]], [[2, 3]], [[]], [[]], [[19], []], [[0]], [1, ['VALUE_0', None]], [], [0], [[0]], [[2, 3]], [[]], [[]], [[19], []], [[0]], [1, [2015.0, None]], []]
+                    
+                    # and/or label is []
+                    len of hisotry:  11 len of labels:  11 len of masks:  11
+query  :  SELECT count(*) FROM concert WHERE YEAR  =  2014 OR YEAR  =  2015
+history:  ['root', 'none', 'select', ('singer in concert', '*', 0), 'count', 'where', ('concert', 'year', 19), '=', ['VALUE_1', None], '=', ['VALUE_0', None]]
+masks   :  [[0], [1], [2], [4], [-1], [2, 8], [3], [5, 9], [-1], [5, 9], [-1]]
+label  :  [[0], [[0]], [[0]], [[2]], [], [[19], []], [[0, 0]], [1, ['VALUE_1', None]], [], [1, ['VALUE_0', None]], []]

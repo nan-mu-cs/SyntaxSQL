@@ -9,6 +9,7 @@ from itertools import count
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+from itertools import chain, count
 import random as rnd
 
 import table
@@ -36,7 +37,7 @@ class LossCompute(nn.Module):
     def compute_loss(self, pred, gold, mask, predictors):
         loss_list = []
 #         mulit_sql, keyword, col, op, agg, root_tem, des_asc, having, andor = predictors
-        for loss_name in ('lay', 'mod_scores'):
+        for loss_name in ('sql', 'mod_scores'):
             if loss_name not in gold:
                 continue
             
@@ -47,19 +48,25 @@ class LossCompute(nn.Module):
                 label = gold[loss_name] # (B, sql_len) list of lists like [[1], [9], [7], [[1], []], [4], [[3, 5] [0]], ...]
                 mod_mask = mask[loss_name] # (B, sql_len) list of lists like [[1], [2], [3], [4, 8], [5], ...]
                 for i, ls, ms in zip(count(), label, mod_mask):
+                    assert len(ls) == len(ms)
                     # ls, ms: [max_sql_len]; i: for B
                     for j, l, m in zip(count(), ls, ms):
                         # l label: [1] or [[3, 5], [0]] or [] m mask: [1] or [2, 4] or [-1]; j for max_sql_len
                         for mod_label, mod_id in zip(l, m):
-                            if mod_id == -1 or len(mod_label) == 0: # to skip [] in [[1], []]
+                            if mod_id in [-1, 9] or len(mod_label) == 0: # to skip [] in [[1], []]
                                 continue
-                                
-                            scores = pred[loss_name][mod_id]
-                            mod_score = []
-                            for score in scores:
-                                mod_score.append(score[i][j].unsqueeze(0)) #append (1, num_of_classes)
+                            
+                            # # TODO: double check!!!
+                            # (B, max_sql_hs_len, 3), (B, max_sql_hs_len, 5)
+                            if mod_id in [1, 2, 3, 4]:
+                                mod_score = []
+                                # (B, max_sql_hs_len, 3), (B, max_sql_hs_len, 5)
+                                score_num, score_cont = pred[loss_name][mod_id]
+                                mod_score.append(score_num[i][j].unsqueeze(0))
+                                mod_score.append(score_cont[i][j].unsqueeze(0)) # (1, num_of_classes)
+                            else:
+                                mod_score = score[i][j].unsqueeze(0)
                             # mod_label： 1 or [3, 5]
-                            mod_label = [mod_label]
                             loss = predictors[mod_id].loss(mod_score, mod_label)
                             loss_list.append(loss)
             else:
@@ -71,7 +78,6 @@ class LossCompute(nn.Module):
                     loss = self.criterion[loss_name](p, g)
                     loss_list.append(loss)
                 
-
         # sum up the loss functions
         return sum(loss_list)
     

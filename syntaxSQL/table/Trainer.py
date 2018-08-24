@@ -10,6 +10,7 @@ import math
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+from itertools import chain, count
 from copy import deepcopy
 
 import table
@@ -118,48 +119,92 @@ def aggregate_accuracy(r_dict, metric_name_list):
     return (agg.sum(), agg.numel())
 
 
+def reconstruct_mask_label_one(mask_one, mask_inds_one, label_list_one, label_nums_one):
+
+    # mask_one/mi/ln: (max_len) mask_list, mask_inds, label_nums
+    module_mask_one = []
+    module_label_one = []
+    module_label_one_temp = []
+    two_mods = []
+    label_index = 0
+    for j, mlj, mij in zip(count(), mask_one, mask_inds_one):
+        if mij != 0:
+            if len(two_mods) > 0:
+                module_mask_one.append(two_mods)
+                two_mods = []   
+            module_mask_one.append([mlj])
+        elif mij == 0:
+            two_mods.append(mlj)
+        
+    ln = label_nums_one.copy()
+    for lnj in ln:
+        label_add = []
+        for _ in range(lnj):
+            label_add.append(label_list_one[label_index])
+            label_index += 1
+        module_label_one_temp.append(label_add)
+        
+    label_num_tmp = []
+    for j, mij in zip(count(), mask_inds_one):
+        if mij < 2:
+            label_num_tmp.append(ln.pop(0))
+        else:
+            lbs = []
+            num_count = 0
+            while num_count < mij:
+                lnp = ln.pop(0)
+                lbs.append(lnp)
+                num_count += lnp
+            assert num_count == mij
+            label_num_tmp.append(lbs)
+    
+    two_labels = []
+    assert len(mask_inds_one) == len(label_num_tmp)
+    for k, mlk, mik, lnk in zip(count(), mask_one, mask_inds_one, label_num_tmp):
+        if mik == 1:
+            if len(two_labels) > 0:
+                module_label_one.append(two_labels)
+                two_labels = []
+            if mlk in [0, 7, -1, 5, 6]:
+                module_label_one.append(module_label_one_temp.pop(0))
+            else:
+                module_label_one.append([module_label_one_temp.pop(0)])
+        elif mik == 0:
+            label = module_label_one_temp.pop(0)
+            if mlk == 5: # for case [1, ['VALUE_0', None]]
+                two_labels.append(label[0])
+            else:
+                two_labels.append(label)
+        else:
+            col_labels = []
+            for lnki in lnk:
+                col_label = module_label_one_temp.pop(0)
+                assert len(col_label) == lnki
+                if len(col_label) == 1:
+                    col_labels.append(col_label[0])
+                else:
+                    col_labels.append(col_label)
+            module_label_one.append([col_labels])
+            
+    return module_mask_one, module_label_one
+
+
 def reconstruct_mask_label(mask_list, mask_inds, label_list, label_nums):
     module_mask = []
     module_label = []
     # mask_list/mask_inds/label_nums: (max_len, B)
-    mask_list = mask_list.transpose(0, 1) # TODO: check size!
-    mask_inds = mask_inds.transpose(0, 1)
-    label_list = label_list.transpose(0, 1)
-    label_nums = label_nums.transpose(0, 1)
+#     print("mask_list: ", mask_list, mask_list.size())
+#     print("mask_inds: ", mask_inds, mask_inds.size())
+#     print("label_list: ", label_list, label_list.size())
+#     print("label_nums: ", label_nums, label_nums.size())
     
-    for i, ml, mi, ln in zip(count(), mask_list, mask_inds, label_nums):
-        # ml/mi/ln: (max_len)
-        label_list_one = label_list[i] # (max_label_len)
-        module_mask_one = []
-        module_label_one = []
-        module_label_one_temp = []
-        two_mods = []
-        two_labels = []
-        label_index = 0
-        for j, mlj, mij, lnj in zip(count(), ml, mi, ln):
-            if mij.data.cpu() == 1:
-                if len(two_mods) > 0:
-                    module_mask_one.append(two_mods)
-                    two_mods = []    
-                module_mask_one.append([mlj.data.cpu()])
-            elif mij.data.cpu() == 0:
-                two_mods.append(mlj.data.cpu())
-                
-            if mij.data.cpu() != -1:
-                label_add = []
-                for _ in range(lnj.data.cpu()):
-                    label_add.append(label_list_one[label_index].data.cpu())
-                    label_index += 1
-                module_label_one_temp.append(label_add)
+    mask_list = [[i for i in ll if i != -2] for ll in mask_list.transpose(0, 1).data.cpu().tolist()]
+    mask_inds = [[i for i in ll if i != -2] for ll in mask_inds.transpose(0, 1).data.cpu().tolist()]
+    label_list = [[i for i in ll if i != -2] for ll in label_list.transpose(0, 1).data.cpu().tolist()]
+    label_nums = [[i for i in ll if i != -2] for ll in label_nums.transpose(0, 1).data.cpu().tolist()]
         
-        for j, mij in zip(count(), mi):
-            if mij.data.cpu() == 1:
-                if len(two_labels) > 0:
-                    module_label_one.append(two_labels)
-                module_label_one.append(module_label_one_temp[j])
-            elif mij.data.cpu() == 0:
-                two_labels.append(module_label_one_temp[j])
-                
+    for i, ml, mi, ln, ll in zip(count(), mask_list, mask_inds, label_nums, label_list):
+        module_mask_one, module_label_one = reconstruct_mask_label_one(ml, mi, ll, ln)
         module_mask.append(module_mask_one)
         module_label.append(module_label_one)
         
@@ -210,49 +255,55 @@ class Trainer(object):
         # 1. F-prop.
         q, q_len = batch.src
         tbl, tbl_len = batch.tbl
-        lay, lay_len = batch.sql_history
+        sql, sql_len = batch.sql_history
         mask_list = batch.mask_list
         mask_inds = batch.mask_inds
         label_list = batch.label_list
         label_nums = batch.label_nums
+        tbl_split = batch.tbl_split
+        tbl_mask = batch.tbl_mask
         
+        # suppose mask_list: (max_len, B) # TODO: check size!
+        # mod_mask, mod_label: (B, max_len) # TODO: check size! and lens of mod_mask and mod_label are same
         mod_mask, mod_label = reconstruct_mask_label(mask_list, mask_inds, label_list, label_nums)
         
+        #print("\n-------------------")
         #print("q: ", q)
-        #print("lay_len: ", lay_len)
-        #print("lay_e: ", batch.lay_e)
-        #print("lay index: ", batch.lay_index)
-        #print("tgt mask: ", batch.tgt_mask)
-        #print("tgt: ", batch.tgt)
-        #print("lay parent index: ", batch.lay_parent_index)
-        #print("tgt parent index: ", batch.tgt_parent_index)
-        #print("copy to ext: ", batch.copy_to_ext)
-        #print("copy to tgt: ", batch.copy_to_tgt)
-        lay_out, mod_scores, predictors = self.model(q, q_len, None, tbl, tbl_len, batch.tbl_split, batch.tbl_mask, lay, lay_len)
+        #print("sql_len: ", sql_len)
+        #print("tbl: ", tbl)
+        #print("mask_list: ", mask_list)
+        #print("mask_inds: ", mask_inds)
+        #print("label_list: ", label_list)
+        #print("label_nums: ", label_nums)
+        #print("mod_mask: ", mod_mask)
+        #print("mod_label: ", mod_label)
+        
+        # TODO: add src_type and col_type : None
+        sql_out, mod_scores, predictors = self.model(q, q_len, None, tbl, tbl_len, tbl_split, tbl_mask, sql, sql_len)
 
-        # _debug_batch_content(fields['lay'].vocab, argmax(lay_out.data))
+        _debug_batch_content(fields['sql_history'].vocab, argmax(sql_out.data))
 
         # 2. Compute loss.
-        pred = {'lay': lay_out, 'mod_scores': mod_scores}
+        pred = {'sql': sql_out, 'mod_scores': mod_scores}
         gold = {}
         mask_loss = {'mod_scores': mod_mask} # TODO: mod_mask -> mask_loss
-        gold['lay'] = lay[1:]
+        gold['sql'] = sql[1:]
         gold['mod_scores'] = mod_label
         
         loss = criterion.compute_loss(pred, gold, mask_loss, predictors)
 
         # 3. Get the batch statistics.
         r_dict = {}
-        for metric_name in ('lay',):
+        for metric_name in ('sql',):
             p = pred[metric_name].data
             g = gold[metric_name].data
             r_dict[metric_name + '-token'] = count_accuracy(
                 p, g, mask=g.eq(table.IO.PAD), row=False)
             r_dict[metric_name] = count_accuracy(
                 p, g, mask=g.eq(table.IO.PAD), row=True)
-        lay_res_dict = dict([(k, (v[0].sum(), v[1])) for k, v in r_dict.items()])
+        sql_res_dict = dict([(k, (v[0].sum(), v[1])) for k, v in r_dict.items()])
         mod_res_dict = count_accuracy_for_predictors(pred, gold, mod_mask, predictors)
-        res_dict = lay_res_dict + mod_res_dict
+        res_dict = sql_res_dict + mod_res_dict
         
         batch_stats = Statistics(loss.data[0], res_dict)
 

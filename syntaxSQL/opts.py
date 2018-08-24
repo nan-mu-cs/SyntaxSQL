@@ -10,8 +10,10 @@ def model_opts(parser):
     # Embedding Options
     parser.add_argument('-word_vec_size', type=int, default=250,
                         help='Word embedding for both.')
-    parser.add_argument('-ent_vec_size', type=int, default=0,
-                        help='Entity type embedding size.')
+    parser.add_argument('-src_type_vec_size', type=int, default=0,
+                        help='Type embedding size for src')
+    parser.add_argument('-col_type_vec_size', type=int, default=0,
+                        help='Type embedding size for col')
     parser.add_argument('-decoder_input_size', type=int, default=200,
                         help='Layout embedding size.')
 
@@ -37,7 +39,7 @@ def model_opts(parser):
     parser.add_argument('-dec_layers', type=int, default=1,
                         help='Number of layers in the decoder')
 
-    parser.add_argument('-rnn_size', type=int, default=300,
+    parser.add_argument('-rnn_size', type=int, default=150,
                         help='Size of LSTM hidden states')
     parser.add_argument('-score_size', type=int, default=64,
                         help='Size of hidden layer in scorer')
@@ -48,6 +50,14 @@ def model_opts(parser):
     parser.add_argument('-brnn_merge', default='concat',
                         choices=['concat', 'sum'],
                         help="Merge action for the bidir hidden states")
+    
+    # Table encoding options
+    parser.add_argument('-split_type', default='incell',
+                        choices=['incell', 'outcell'],
+                        help="whether encode column split token |")
+    parser.add_argument('-merge_type', default='cat',
+                        choices=['sub', 'cat', 'mlp'],
+                        help="compute span vector for table column: mlp>cat>sub")
 
     # Attention options
     parser.add_argument('-global_attention', type=str, default='general',
@@ -66,10 +76,10 @@ def model_opts(parser):
                         help='Whether share embeddings for layout encoder.')
     parser.add_argument('-mask_target_loss', action="store_true",
                         help='Whether mask target sequence loss.')
-    parser.add_argument('-lay_co_attention', action="store_true",
-                        help='Use co-attention for layout encoder towards input.')
+    parser.add_argument('-sql_co_attention', action="store_true",
+                        help='Use co-attention for sql hisotry encoder towards input.')
     parser.add_argument('-q_co_attention', action="store_true",
-                        help='Use co-attention for input encoder towards layout.')
+                        help='Use co-attention for input encoder towards sql history.')
     parser.add_argument('-qt_co_attention', action="store_true",
                         help="if attn_hidden > 0, then attention score = f(Ue) B f(Ud)")
     parser.add_argument('-copy_prb', type=str, default='hidden',
@@ -169,7 +179,7 @@ def train_opts(parser):
     parser.add_argument('-moving_avg', type=float, default=0,
                         help="Exponential moving average")
     # learning rate
-    parser.add_argument('-learning_rate', type=float, default=0.005,
+    parser.add_argument('-learning_rate', type=float, default=0.002,
                         help="""Starting learning rate.""")
     parser.add_argument('-alpha', type=float, default=0.95,
                         help="Optimization hyperparameter")

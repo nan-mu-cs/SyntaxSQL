@@ -1,12 +1,11 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-import table.IO
 from table.modules.UtilClass import BottleLinear
 from table.Utils import aeq
+import table.IO
 
-class GlobalAttention(nn.Module):
+class QtGlobalAttention(nn.Module):
     """
     Luong Attention.
 
@@ -41,16 +40,12 @@ class GlobalAttention(nn.Module):
 
     """
 
-    def __init__(self, dim, is_transform_out, attn_type="dot", attn_hidden=0, context_size=None):
-        super(GlobalAttention, self).__init__()
+    def __init__(self, dim, is_transform_out, attn_type="dot", attn_hidden=0):
+        super(QtGlobalAttention, self).__init__()
 
         self.dim = dim
         self.attn_type = attn_type
         self.attn_hidden = attn_hidden
-        if context_size is None:
-            self.context_size = dim
-        else:
-            self.context_size = context_size
         assert (self.attn_type in ["dot", "general", "mlp"]), (
             "Please select a valid attention type.")
 
@@ -65,22 +60,19 @@ class GlobalAttention(nn.Module):
             # initialization
             # self.linear_in.weight.data.add_(torch.eye(d))
         elif self.attn_type == "mlp":
-            self.linear_context = BottleLinear(
-                self.context_size, dim, bias=False)
+            self.linear_context = BottleLinear(dim, dim, bias=False)
             self.linear_query = nn.Linear(dim, dim, bias=True)
             self.v = BottleLinear(dim, 1, bias=False)
         # mlp wants it with bias
         out_bias = self.attn_type == "mlp"
         if is_transform_out:
-            self.linear_out = nn.Linear(
-                dim + self.context_size, dim, bias=out_bias)
+            self.linear_out = nn.Linear(dim * 2, dim, bias=out_bias)
         else:
             self.linear_out = None
 
         self.sm = nn.Softmax()
         self.tanh = nn.Tanh()
         self.mask = None
-        self.ignore_small = 0
 
     def applyMask(self, mask):
         self.mask = mask
@@ -100,8 +92,8 @@ class GlobalAttention(nn.Module):
         src_batch, src_len, src_dim = h_s.size()
         tgt_batch, tgt_len, tgt_dim = h_t.size()
         aeq(src_batch, tgt_batch)
-        # aeq(src_dim, tgt_dim)
-        # aeq(self.dim, src_dim)
+        aeq(src_dim, tgt_dim)
+        aeq(self.dim, src_dim)
 
         if self.attn_type in ["general", "dot"]:
             if self.attn_hidden > 0:
@@ -118,8 +110,7 @@ class GlobalAttention(nn.Module):
             wq = wq.view(tgt_batch, tgt_len, 1, dim)
             wq = wq.expand(tgt_batch, tgt_len, src_len, dim)
 
-            uh = self.linear_context(
-                h_s.contiguous().view(-1, self.context_size))
+            uh = self.linear_context(h_s.contiguous().view(-1, dim))
             uh = uh.view(src_batch, 1, src_len, dim)
             uh = uh.expand(src_batch, tgt_len, src_len, dim)
 
@@ -144,8 +135,8 @@ class GlobalAttention(nn.Module):
         batch, sourceL, dim = context.size()
         batch_, targetL, dim_ = input.size()
         aeq(batch, batch_)
-        # aeq(dim, dim_)
-        # aeq(self.dim, dim)
+        aeq(dim, dim_)
+        aeq(self.dim, dim)
 
         if self.mask is not None:
             beam_, batch_, sourceL_ = self.mask.size()
@@ -163,9 +154,6 @@ class GlobalAttention(nn.Module):
         align_vectors = self.sm(align.view(batch * targetL, sourceL))
         align_vectors = align_vectors.view(batch, targetL, sourceL)
 
-        if self.ignore_small > 0:
-            align_vectors = F.threshold(align_vectors, self.ignore_small, 0)
-
         # each context vector c_t is the weighted average
         # over all the source hidden states
         c = torch.bmm(align_vectors, context)
@@ -181,13 +169,27 @@ class GlobalAttention(nn.Module):
 
         if one_step:
             attn_h = attn_h.squeeze(1)
-            if self.linear_out is not None:
-                concat_c = concat_c.squeeze(1)
             align_vectors = align_vectors.squeeze(1)
+
+            # Check output sizes
+            batch_, dim_ = attn_h.size()
+            aeq(batch, batch_)
+            # aeq(dim, dim_)
+            batch_, sourceL_ = align_vectors.size()
+            aeq(batch, batch_)
+            aeq(sourceL, sourceL_)
         else:
             attn_h = attn_h.transpose(0, 1).contiguous()
-            if self.linear_out is not None:
-                concat_c = concat_c.transpose(0, 1).contiguous()
             align_vectors = align_vectors.transpose(0, 1).contiguous()
 
-        return attn_h, align_vectors, concat_c
+            # Check output sizes
+            targetL_, batch_, dim_ = attn_h.size()
+            aeq(targetL, targetL_)
+            aeq(batch, batch_)
+            # aeq(dim, dim_)
+            targetL_, batch_, sourceL_ = align_vectors.size()
+            aeq(targetL, targetL_)
+            aeq(batch, batch_)
+            aeq(sourceL, sourceL_)
+
+        return attn_h, align_vectors
