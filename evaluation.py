@@ -26,6 +26,9 @@ import traceback
 
 from process_sql import tokenize, get_schema, get_tables_with_alias, Schema, get_sql
 
+# Flag to disable distinct in select evaluation
+DISABLE_DISTINCT = True
+
 ROOTPATH = "./database"
 
 CLAUSE_KEYWORDS = ('select', 'from', 'where', 'group', 'order', 'limit', 'intersect', 'union', 'except')
@@ -111,6 +114,21 @@ def eval_sel(pred, label):
     cnt = 0
     cnt_wo_agg = 0
 
+    if DISABLE_DISTINCT:
+        def remove_distinct(sel_list):
+            res = []
+            for entry in sel_list:
+                agg_id, val_unit = entry[0], entry[1]
+                unit_op, col_unit1, col_unit2 = val_unit[0], val_unit[1], val_unit[2]
+                new_col_unit1 = (col_unit1[0], col_unit1[1])
+                new_col_unit2 = (col_unit2[0], col_unit2[1])
+                new_val_unit = (unit_op, new_col_unit1, new_col_unit2)
+                new_entry = (agg_id, new_val_unit)
+                res.append(new_entry)
+            return res
+        pred_sel = remove_distinct(label_sel)
+        label_sel = remove_distinct(label_sel)
+
     for unit in pred_sel:
         if unit in label_sel:
             cnt += 1
@@ -161,8 +179,7 @@ def eval_having(pred, label):
 
     pred_cols = [unit[1] for unit in pred['groupBy']]
     label_cols = [unit[1] for unit in label['groupBy']]
-    if pred_total == label_total == 1 and \
-        pred_cols == label_cols and pred['having'] == label['having']:
+    if pred_total == label_total == 1 and pred_cols == label_cols:
         cnt = 1
 
     return label_total, pred_total, cnt
