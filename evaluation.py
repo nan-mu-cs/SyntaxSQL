@@ -26,6 +26,8 @@ import traceback
 
 from process_sql import tokenize, get_schema, get_tables_with_alias, Schema, get_sql
 
+# Flag to disable value evaluation
+DISABLE_VALUE = True
 # Flag to disable distinct in select evaluation
 DISABLE_DISTINCT = True
 
@@ -179,7 +181,9 @@ def eval_having(pred, label):
 
     pred_cols = [unit[1] for unit in pred['groupBy']]
     label_cols = [unit[1] for unit in label['groupBy']]
-    if pred_total == label_total == 1 and pred_cols == label_cols:
+    if pred_total == label_total == 1 \
+            and pred_cols == label_cols \
+            and pred['having'] == label['having']:
         cnt = 1
 
     return label_total, pred_total, cnt
@@ -374,12 +378,7 @@ class Evaluator:
     def eval_exact_match(self, pred, label):
         partial_scores = self.eval_partial_match(pred, label)
         self.partial_scores = partial_scores
-        # for _, score in partial_scores.items():
-        #     if score['acc'] != 1:
-        #         return 0
-        # print("pred:{}".format(pred))
-        # print("label:{}".format(label))
-        # print("\n")
+
         for _, score in partial_scores.items():
             if score['f1'] != 1:
                 return 0
@@ -471,7 +470,7 @@ def print_scores(scores, etype):
             print "{:20} {:<20.3f} {:<20.3f} {:<20.3f} {:<20.3f} {:<20.3f}".format(type_, *this_scores)
 
 
-def evaluate(gold, predict, etype):
+def evaluate(gold, predict, etype, kmaps):
     with open(gold) as f:
         glist = [l.strip().split('\t') for l in f.readlines() if len(l.strip()) > 0]
 
@@ -533,6 +532,13 @@ def evaluate(gold, predict, etype):
             }
             eval_err_num += 1
             print("eval_err_num:{}".format(eval_err_num))
+
+        # rebuild sql for value evaluation
+        kmap = kmaps[db]
+        g_sql = rebuild_sql_val(g_sql)
+        g_sql = rebuild_sql_col(g_sql, kmap)
+        p_sql = rebuild_sql_val(p_sql)
+        p_sql = rebuild_sql_col(p_sql, kmap)
 
         if etype in ["all", "exec"]:
             exec_score = eval_exec_match(db, p_str, g_str, p_sql, g_sql)
@@ -627,6 +633,192 @@ def eval_exec_match(db, p_str, g_str, pred, gold):
     q_val_units = [unit[1] for unit in gold['select'][1]]
     return res_map(p_res, p_val_units) == res_map(q_res, q_val_units)
 
+
+# Rebuild SQL functions for value evaluation
+def rebuild_cond_unit_val(cond_unit):
+    if cond_unit is None or not DISABLE_VALUE:
+        return cond_unit
+
+    not_op, op_id, val_unit, val1, val2 = cond_unit
+    return not_op, op_id, val_unit, None, None
+
+
+def rebuild_condition_val(condition):
+    if condition is None or not DISABLE_VALUE:
+        return condition
+
+    res = []
+    for idx, it in enumerate(condition):
+        if idx % 2 == 0:
+            res.append(rebuild_cond_unit_val(it))
+        else:
+            res.append(it)
+    return res
+
+
+def rebuild_sql_val(sql):
+    if sql is None or not DISABLE_VALUE:
+        return sql
+
+    sql['from']['conds'] = rebuild_condition_val(sql['from']['conds'] )
+    sql['having'] = rebuild_condition_val(sql['having'])
+    sql['where'] = rebuild_condition_val(sql['where'])
+    sql['intersect'] = rebuild_sql_val(sql['intersect'])
+    sql['except'] = rebuild_sql_val(sql['except'])
+    sql['union'] = rebuild_sql_val(sql['union'])
+
+    return sql
+
+
+# Rebuild SQL functions for foreign key evaluation
+def rebuild_col_unit_col(col_unit, kmap):
+    if col_unit is None:
+        return col_unit
+
+    agg_id, col_id, distinct = col_unit
+    if col_id in kmap:
+        col_id = kmap[col_id]
+    return agg_id, col_id, distinct
+
+
+def rebuild_val_unit_col(val_unit, kmap):
+    if val_unit is None:
+        return val_unit
+
+    unit_op, col_unit1, col_unit2 = val_unit
+    col_unit1 = rebuild_col_unit_col(col_unit1, kmap)
+    col_unit2 = rebuild_col_unit_col(col_unit2, kmap)
+    return unit_op, col_unit1, col_unit2
+
+
+def rebuild_table_unit_col(table_unit, kmap):
+    if table_unit is None:
+        return table_unit
+
+    table_type, col_unit_or_sql = table_unit
+    if isinstance(col_unit_or_sql, tuple):
+        col_unit_or_sql = rebuild_col_unit_col(col_unit_or_sql, kmap)
+    return table_type, col_unit_or_sql
+
+
+def rebuild_cond_unit_col(cond_unit, kmap):
+    if cond_unit is None:
+        return cond_unit
+
+    not_op, op_id, val_unit, val1, val2 = cond_unit
+    val_unit = rebuild_val_unit_col(val_unit, kmap)
+    return not_op, op_id, val_unit, val1, val2
+
+
+def rebuild_condition_col(condition, kmap):
+    for idx in range(len(condition)):
+        if idx % 2 == 0:
+            condition[idx] = rebuild_cond_unit_col(condition[idx], kmap)
+    return condition
+
+
+def rebuild_select_col(sel, kmap):
+    if sel is None:
+        return sel
+    distinct, _list = sel
+    new_list = []
+    for it in _list:
+        agg_id, val_unit = it
+        new_list.append((agg_id, rebuild_val_unit_col(val_unit, kmap)))
+    return distinct, new_list
+
+
+def rebuild_from_col(from_, kmap):
+    if from_ is None:
+        return from_
+
+    from_['table_units'] = [rebuild_table_unit_col(table_unit, kmap) for table_unit in from_['table_units']]
+    from_['conds'] = rebuild_condition_col(from_['conds'], kmap)
+    return from_
+
+
+def rebuild_group_by_col(group_by, kmap):
+    if group_by is None:
+        return group_by
+
+    return [rebuild_col_unit_col(col_unit, kmap) for col_unit in group_by]
+
+
+def rebuild_order_by_col(order_by, kmap):
+    if order_by is None:
+        return order_by
+
+    direction, val_units = order_by
+    new_val_units = [rebuild_val_unit_col(val_unit, kmap) for val_unit in val_units]
+    return direction, new_val_units
+
+
+def rebuild_sql_col(sql, kmap):
+    if sql is None:
+        return sql
+
+    sql['select'] = rebuild_select_col(sql['select'], kmap)
+    sql['from'] = rebuild_from_col(sql['from'], kmap)
+    sql['where'] = rebuild_condition_col(sql['where'], kmap)
+    sql['groupBy'] = rebuild_group_by_col(sql['groupBy'], kmap)
+    sql['orderBy'] = rebuild_group_by_col(sql['orderBy'], kmap)
+    sql['having'] = rebuild_condition_col(sql['having'], kmap)
+    sql['intersect'] = rebuild_sql_col(sql['intersect'], kmap)
+    sql['except'] = rebuild_sql_col(sql['except'], kmap)
+    sql['union'] = rebuild_sql_col(sql['union'], kmap)
+
+    return sql
+
+
+def build_foreign_key_map(entry):
+    cols_orig = entry["column_names_original"]
+    tables_orig = entry["table_names_original"]
+
+    # rebuild cols corresponding to idmap in Schema
+    cols = []
+    for col_orig in cols_orig:
+        if col_orig[0] >= 0:
+            t = tables_orig[col_orig[0]]
+            c = col_orig[1]
+            cols.append("__" + t.lower() + "." + c.lower() + "__")
+        else:
+            cols.append("__all__")
+
+    def keyset_in_list(k1, k2, k_list):
+        for k_set in k_list:
+            if k1 in k_set or k2 in k_set:
+                return k_set
+        new_k_set = set()
+        k_list.append(new_k_set)
+        return new_k_set
+
+    foreign_key_list = []
+    foreign_keys = entry["foreign_keys"]
+    for fkey in foreign_keys:
+        key1, key2 = fkey
+        key_set = keyset_in_list(key1, key2, foreign_key_list)
+        key_set.add(key1)
+        key_set.add(key2)
+
+    foreign_key_map = {}
+    for key_set in foreign_key_list:
+        sorted_list = sorted(list(key_set))
+        midx = sorted_list[0]
+        for idx in sorted_list:
+            foreign_key_map[cols[idx]] = cols[midx]
+
+    return foreign_key_map
+
+
+def build_foreign_key_map_from_json():
+    with open('./data/tables.json') as f:
+        data = json.load(f)
+    tables = {}
+    for entry in data:
+        tables[entry['db_id']] = build_foreign_key_map(entry)
+    return tables
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
@@ -641,4 +833,6 @@ if __name__ == "__main__":
 
     assert etype in ["all", "exec", "match"], "Unknown evaluation method"
 
-    evaluate(gold, pred, etype)
+    kmaps = build_foreign_key_map_from_json()
+
+    evaluate(gold, pred, etype, kmaps)
