@@ -235,9 +235,13 @@ def eval_IUEN(pred, label):
     label_total = len(label_nested)
     cnt = 0
 
-    for sql in pred_nested:
-        if sql in label_nested:
-            cnt += 1
+    evaluator = Evaluator()
+    if evaluator.eval_exact_match(pred['intersect'], label['intersect']):
+        cnt += 1
+    if evaluator.eval_exact_match(pred['except'], label['except']):
+        cnt += 1
+    if evaluator.eval_exact_match(pred['union'], label['union']):
+        cnt += 1
     return label_total, pred_total, cnt
 
 
