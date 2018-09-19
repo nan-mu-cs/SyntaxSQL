@@ -115,12 +115,16 @@ def eval_sel(pred, label):
     label_total = len(label_sel)
     cnt = 0
     cnt_wo_agg = 0
+    label_sel = set(label_sel)
+    label_wo_agg = set(label_wo_agg)
 
     for unit in pred_sel:
         if unit in label_sel:
             cnt += 1
+            label_sel.remove(unit)
         if unit[1] in label_wo_agg:
             cnt_wo_agg += 1
+            label_wo_agg.remove(unit[1])
 
     return label_total, pred_total, cnt, cnt_wo_agg
 
@@ -137,8 +141,10 @@ def eval_where(pred, label):
     for unit in pred_conds:
         if unit in label_conds:
             cnt += 1
+            label_conds.remove(unit)
         if unit[2] in label_wo_agg:
             cnt_wo_agg += 1
+            label_wo_agg.remove(unit[2])
 
     return label_total, pred_total, cnt, cnt_wo_agg
 
@@ -150,10 +156,11 @@ def eval_group(pred, label):
     label_total = len(label_cols)
     cnt = 0
     pred_cols = [pred.split(".")[1] if "." in pred else pred for pred in pred_cols]
-    label_cols = [label.split(".")[1] if "." in label else label for label in label_cols]
+    label_cols = set([label.split(".")[1] if "." in label else label for label in label_cols])
     for col in pred_cols:
         if col in label_cols:
             cnt += 1
+            label_cols.remove(col)
     return label_total, pred_total, cnt
 
 
@@ -377,6 +384,10 @@ class Evaluator:
         for _, score in partial_scores.items():
             if score['f1'] != 1:
                 return 0
+        if len(label['from']['table_units']) > 1:
+            label_tables = sorted(label['from']['table_units'])
+            pred_tables = sorted(pred['from']['table_units'])
+            return label_tables == pred_tables
         return 1
 
     def eval_partial_match(self, pred, label):
