@@ -176,11 +176,11 @@ def eval_having(pred, label):
 
 def eval_order(pred, label):
     pred_total = label_total = cnt = 0
-    if len(pred['orderBy'][1]) > 0:
+    if len(pred['orderBy']) > 0:
         pred_total = 1
-    if len(label['orderBy'][1]) > 0:
+    if len(label['orderBy']) > 0:
         label_total = 1
-    if len(label['orderBy'][1]) > 0 and pred['orderBy'] == label['orderBy'] and \
+    if len(label['orderBy']) > 0 and pred['orderBy'] == label['orderBy'] and \
             ((pred['limit'] is None and label['limit'] is None) or (pred['limit'] is not None and label['limit'] is not None)):
         cnt = 1
     return label_total, pred_total, cnt
@@ -518,7 +518,7 @@ def evaluate(gold, predict, etype, kmaps):
             "having": [],
             "intersect": None,
             "limit": None,
-            "orderBy": ("asc", []),
+            "orderBy": [],
             "select": [
                 False,
                 []
@@ -747,7 +747,7 @@ def rebuild_group_by_col(group_by, kmap):
 
 
 def rebuild_order_by_col(order_by, kmap):
-    if order_by is None:
+    if order_by is None or len(order_by) == 0:
         return order_by
 
     direction, val_units = order_by
