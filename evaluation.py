@@ -116,21 +116,6 @@ def eval_sel(pred, label):
     cnt = 0
     cnt_wo_agg = 0
 
-    if DISABLE_DISTINCT:
-        def remove_distinct(sel_list):
-            res = []
-            for entry in sel_list:
-                agg_id, val_unit = entry[0], entry[1]
-                unit_op, col_unit1, col_unit2 = val_unit[0], val_unit[1], val_unit[2]
-                new_col_unit1 = (col_unit1[0], col_unit1[1])
-                new_col_unit2 = (col_unit2[0], col_unit2[1])
-                new_val_unit = (unit_op, new_col_unit1, new_col_unit2)
-                new_entry = (agg_id, new_val_unit)
-                res.append(new_entry)
-            return res
-        pred_sel = remove_distinct(label_sel)
-        label_sel = remove_distinct(label_sel)
-
     for unit in pred_sel:
         if unit in label_sel:
             cnt += 1
@@ -228,20 +213,26 @@ def get_nestedSQL(sql):
     return nested
 
 
-def eval_IUEN(pred, label):
-    pred_nested = get_nestedSQL(pred)
-    label_nested = get_nestedSQL(label)
-    pred_total = len(pred_nested)
-    label_total = len(label_nested)
+def eval_nested(pred, label):
+    label_total = 0
+    pred_total = 0
     cnt = 0
+    if pred is not None:
+        pred_total += 1
+    if label is not None:
+        label_total += 1
+    if pred is not None and label is not None:
+        cnt += Evaluator().eval_exact_match(pred, label)
+    return label_total, pred_total, cnt
 
-    evaluator = Evaluator()
-    if evaluator.eval_exact_match(pred['intersect'], label['intersect']):
-        cnt += 1
-    if evaluator.eval_exact_match(pred['except'], label['except']):
-        cnt += 1
-    if evaluator.eval_exact_match(pred['union'], label['union']):
-        cnt += 1
+
+def eval_IUEN(pred, label):
+    lt1, pt1, cnt1 = eval_nested(pred['intersect'], label['intersect'])
+    lt2, pt2, cnt2 = eval_nested(pred['except'], label['except'])
+    lt3, pt3, cnt3 = eval_nested(pred['union'], label['union'])
+    label_total = lt1 + lt2 + lt3
+    pred_total = pt1 + pt2 + pt3
+    cnt = cnt1 + cnt2 + cnt3
     return label_total, pred_total, cnt
 
 
@@ -499,6 +490,7 @@ def evaluate(gold, predict, etype, kmaps):
     for p, g in zip(plist, glist):
         p_str = p[0]
         g_str, db = g
+        db_name = db
         db = os.path.join(ROOTPATH, db, db + ".sqlite")
         schema = Schema(get_schema(db))
         g_sql = get_sql(schema, g_str)
@@ -538,7 +530,7 @@ def evaluate(gold, predict, etype, kmaps):
             print("eval_err_num:{}".format(eval_err_num))
 
         # rebuild sql for value evaluation
-        kmap = kmaps[db]
+        kmap = kmaps[db_name]
         g_sql = rebuild_sql_val(g_sql)
         g_sql = rebuild_sql_col(g_sql, kmap)
         p_sql = rebuild_sql_val(p_sql)
@@ -583,6 +575,8 @@ def evaluate(gold, predict, etype, kmaps):
             })
 
     for level in levels:
+        if scores[level]['count'] == 0:
+            continue
         if etype in ["all", "exec"]:
             scores[level]['exec'] /= scores[level]['count']
 
@@ -682,6 +676,8 @@ def rebuild_col_unit_col(col_unit, kmap):
     agg_id, col_id, distinct = col_unit
     if col_id in kmap:
         col_id = kmap[col_id]
+    if DISABLE_DISTINCT:
+        distinct = None
     return agg_id, col_id, distinct
 
 
@@ -729,6 +725,8 @@ def rebuild_select_col(sel, kmap):
     for it in _list:
         agg_id, val_unit = it
         new_list.append((agg_id, rebuild_val_unit_col(val_unit, kmap)))
+    if DISABLE_DISTINCT:
+        distinct = None
     return distinct, new_list
 
 
