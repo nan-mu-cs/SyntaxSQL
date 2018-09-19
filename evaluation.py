@@ -636,8 +636,12 @@ def rebuild_cond_unit_val(cond_unit):
     not_op, op_id, val_unit, val1, val2 = cond_unit
     if type(val1) is not dict:
         val1 = None
+    else:
+        val1 = rebuild_sql_val(val1)
     if type(val2) is not dict:
         val2 = None
+    else:
+        val2 = rebuild_sql_val(val2)
     return not_op, op_id, val_unit, val1, val2
 
 
