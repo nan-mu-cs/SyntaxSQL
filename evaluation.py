@@ -501,18 +501,12 @@ def evaluate(gold, predict, etype, kmaps):
         try:
             p_sql = get_sql(schema, p_str)
         except:
-            traceback.print_exc()
-
+            # If p_sql is not valid, then we will use an empty sql to evaluate with the correct sql
             p_sql = {
             "except": None,
             "from": {
                 "conds": [],
-                "table_units": [
-                    [
-                        "table_unit",
-                        1
-                    ]
-                ]
+                "table_units": []
             },
             "groupBy": [],
             "having": [],
