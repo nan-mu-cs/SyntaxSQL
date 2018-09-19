@@ -115,8 +115,6 @@ def eval_sel(pred, label):
     label_total = len(label_sel)
     cnt = 0
     cnt_wo_agg = 0
-    label_sel = set(label_sel)
-    label_wo_agg = set(label_wo_agg)
 
     for unit in pred_sel:
         if unit in label_sel:
@@ -156,7 +154,7 @@ def eval_group(pred, label):
     label_total = len(label_cols)
     cnt = 0
     pred_cols = [pred.split(".")[1] if "." in pred else pred for pred in pred_cols]
-    label_cols = set([label.split(".")[1] if "." in label else label for label in label_cols])
+    label_cols = [label.split(".")[1] if "." in label else label for label in label_cols]
     for col in pred_cols:
         if col in label_cols:
             cnt += 1
@@ -482,7 +480,8 @@ def evaluate(gold, predict, etype, kmaps):
 
     with open(predict) as f:
         plist = [l.strip().split('\t') for l in f.readlines() if len(l.strip()) > 0]
-
+    # plist = [("select max(Share),min(Share) from performance where Type != 'terminal'", "orchestra")]
+    # glist = [("SELECT max(SHARE) ,  min(SHARE) FROM performance WHERE TYPE != 'Live final'", "orchestra")]
     evaluator = Evaluator()
 
     levels = ['easy', 'medium', 'hard', 'extra', 'all']
@@ -859,7 +858,8 @@ if __name__ == "__main__":
     etype = args.etype
 
     assert etype in ["all", "exec", "match"], "Unknown evaluation method"
-
+    # gold = pred = None
+    # etype = "match"
     kmaps = build_foreign_key_map_from_json()
 
     evaluate(gold, pred, etype, kmaps)
