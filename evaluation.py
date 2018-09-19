@@ -176,11 +176,11 @@ def eval_having(pred, label):
 
 def eval_order(pred, label):
     pred_total = label_total = cnt = 0
-    if len(pred['orderBy']) > 0:
+    if len(pred['orderBy'][1]) > 0:
         pred_total = 1
-    if len(label['orderBy']) > 0:
+    if len(label['orderBy'][1]) > 0:
         label_total = 1
-    if len(label['orderBy']) > 0 and pred['orderBy'] == label['orderBy'] and \
+    if len(label['orderBy'][1]) > 0 and pred['orderBy'] == label['orderBy'] and \
             ((pred['limit'] is None and label['limit'] is None) or (pred['limit'] is not None and label['limit'] is not None)):
         cnt = 1
     return label_total, pred_total, cnt
@@ -518,7 +518,7 @@ def evaluate(gold, predict, etype, kmaps):
             "having": [],
             "intersect": None,
             "limit": None,
-            "orderBy": [],
+            "orderBy": ("asc", []),
             "select": [
                 False,
                 []
@@ -658,7 +658,7 @@ def rebuild_sql_val(sql):
     if sql is None or not DISABLE_VALUE:
         return sql
 
-    sql['from']['conds'] = rebuild_condition_val(sql['from']['conds'] )
+    sql['from']['conds'] = rebuild_condition_val(sql['from']['conds'])
     sql['having'] = rebuild_condition_val(sql['having'])
     sql['where'] = rebuild_condition_val(sql['where'])
     sql['intersect'] = rebuild_sql_val(sql['intersect'])
@@ -763,7 +763,7 @@ def rebuild_sql_col(sql, kmap):
     sql['from'] = rebuild_from_col(sql['from'], kmap)
     sql['where'] = rebuild_condition_col(sql['where'], kmap)
     sql['groupBy'] = rebuild_group_by_col(sql['groupBy'], kmap)
-    sql['orderBy'] = rebuild_group_by_col(sql['orderBy'], kmap)
+    sql['orderBy'] = rebuild_order_by_col(sql['orderBy'], kmap)
     sql['having'] = rebuild_condition_col(sql['having'], kmap)
     sql['intersect'] = rebuild_sql_col(sql['intersect'], kmap)
     sql['except'] = rebuild_sql_col(sql['except'], kmap)
