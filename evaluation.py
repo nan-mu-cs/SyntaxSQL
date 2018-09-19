@@ -466,13 +466,11 @@ def print_scores(scores, etype):
 
 
 def evaluate(gold, predict, etype, kmaps):
-    # with open(gold) as f:
-    #     glist = [l.strip().split('\t') for l in f.readlines() if len(l.strip()) > 0]
-    #
-    # with open(predict) as f:
-    #     plist = [l.strip().split('\t') for l in f.readlines() if len(l.strip()) > 0]
-    glist = [("SELECT name ,  country ,  age FROM singer ORDER BY age DESC", "concert_singer")]
-    plist = [("select Age,Name,Country from singer order by Age desc", "concert_singer")]
+    with open(gold) as f:
+        glist = [l.strip().split('\t') for l in f.readlines() if len(l.strip()) > 0]
+
+    with open(predict) as f:
+        plist = [l.strip().split('\t') for l in f.readlines() if len(l.strip()) > 0]
 
     evaluator = Evaluator()
 
@@ -840,20 +838,19 @@ def build_foreign_key_map_from_json():
 
 
 if __name__ == "__main__":
-    # import argparse
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--gold', dest='gold', type=str)
-    # parser.add_argument('--pred', dest='pred', type=str)
-    # parser.add_argument('--etype', dest='etype', type=str)
-    # args = parser.parse_args()
-    #
-    # gold = args.gold
-    # pred = args.pred
-    # etype = args.etype
-    #
-    # assert etype in ["all", "exec", "match"], "Unknown evaluation method"
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--gold', dest='gold', type=str)
+    parser.add_argument('--pred', dest='pred', type=str)
+    parser.add_argument('--etype', dest='etype', type=str)
+    args = parser.parse_args()
+
+    gold = args.gold
+    pred = args.pred
+    etype = args.etype
+
+    assert etype in ["all", "exec", "match"], "Unknown evaluation method"
 
     kmaps = build_foreign_key_map_from_json()
-    gold = pred = None
-    etype = "match"
+
     evaluate(gold, pred, etype, kmaps)
