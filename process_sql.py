@@ -393,6 +393,8 @@ def parse_from(toks, start_idx, tables_with_alias, schema):
         if idx < len_ and toks[idx] == "on":
             idx += 1  # skip on
             idx, this_conds = parse_condition(toks, idx, tables_with_alias, schema, default_tables)
+            if len(conds) > 0:
+                conds.append('and')
             conds.extend(this_conds)
 
         if isBlock:
@@ -568,7 +570,7 @@ if __name__ == '__main__':
     # schema = Schema(get_schema('art_1.sqlite'))
     # print schema.schema
     # schema = {"paragraphs": ["paragraph_text","paragraph_id", "document_id"], "documents": ["document_id", "document_name"]}
-    schema = {"appellations": ["area", "appelation", "year"], "wine": ["appelation", "year"]}
+    schema = {"appellations": ["area", "appelation", "year"], "wine": ["appelation", "year"], "airports":["name", "city", "country", "elevation"]}
     schema = Schema(schema)
     # print schema.idMap
     data = ["test1"]
@@ -578,7 +580,8 @@ if __name__ == '__main__':
         # query = "SELECT template_id FROM Templates WHERE template_type_code  =  \"PP\" OR template_type_code  =  \"PPT\""
         # query = "SELECT count(*) FROM Paragraphs AS T1 JOIN Documents AS T2 ON T1.document_ID  =  T2.document_ID WHERE T2.document_name  =  'Summer Show'"
         # query = "(SELECT T1.paragraph_id ,   T1.paragraph_text FROM Paragraphs AS T1 JOIN Documents AS T2 ON T1.document_id  =  T2.document_id WHERE T2.Document_Name  =  'Welcome to NY';);"
-        query = "SELECT T1.Area FROM APPELLATIONS AS T1 JOIN WINE AS T2 ON T1.Appelation  =  T2.Appelation GROUP BY T2.Appelation HAVING T2.year  <  2010 ORDER BY count(*) DESC LIMIT 1"
+        # query = "SELECT T1.Area FROM APPELLATIONS AS T1 JOIN WINE AS T2 ON T1.Appelation  =  T2.Appelation GROUP BY T2.Appelation HAVING T2.year  <  2010 ORDER BY count(*) DESC LIMIT 1"
+        query = "SELECT name ,  city ,  country ,  elevation FROM airports as T1 JOIN airports as T2 on name = 123 and city = 123 WHERE city  =  'New York'"
         toks = tokenize(query)
         tables_with_alias = get_tables_with_alias(schema.schema, toks)
         _, sql = parse_sql(toks, 0, tables_with_alias, schema)
